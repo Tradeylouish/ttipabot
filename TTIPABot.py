@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 import  xlwings as xw
 
+import tweepy
 
 class TTIPABot:
     def __init__(self):
@@ -128,6 +129,10 @@ class TTIPABot:
 
             # write data to the csv file
             writer.writerows(data)
+
+    def writeRawHTML(self, rawHTML):
+        with open("registerHTML.txt", 'w', encoding="utf-8") as f:
+            f.write(rawHTML)
 
     def scrape(self):
         results = self.getFullRegister()
