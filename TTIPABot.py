@@ -18,7 +18,10 @@ class TTIPABot:
 
     def TTIPABrequest(self, count):
         # Public API endpoint as determined by Inspect Element > Network > Requests on Google Chrome
-        url = "https://www.ttipattorney.gov.au//sxa/search/results/?s={21522AF6-8499-4C63-8CFA-02E2B97737BE}&itemid={8B94FE47-304A-4629-AD46-DD208EEF71AA}&sig=als&e=0&p=" + str(count) + "&v=%7B2FCA44D4-EE00-43EC-BBBF-858C31387413%7D"
+        urlBase = "https://www.ttipattorney.gov.au//sxa/search/results/"
+        urlOptions1 = "?s={21522AF6-8499-4C63-8CFA-02E2B97737BE}&itemid={8B94FE47-304A-4629-AD46-DD208EEF71AA}&sig=als&e=0&p="
+        urlOptions2 = "&v=%7B2FCA44D4-EE00-43EC-BBBF-858C31387413%7D"
+        url =  urlBase + urlOptions1 + str(count) + urlOptions2
         return requests.get(url)
 
     def getFullRegister(self):
