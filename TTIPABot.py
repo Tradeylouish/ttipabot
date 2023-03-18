@@ -214,15 +214,11 @@ def analyse(date1_path, date2_path):
     df_changedDetails = df_names.query("NameExist == 'both'")
     df_changedFirms = df_changedDetails.query("Firm_x != Firm_y")
 
-    #print(df_newAttorneys)
+    #TODO: Consider doing a comparison of registrations and capturing those going from single to dual registered
 
+    # Prep the needed data, replace missing values with empty strings to assist comparisons later on
     df_newAttorneys = df_newAttorneys[['Name', 'Firm_y', 'Registered as_y']].fillna('')
     df_changedFirms = df_changedFirms[['Name', 'Firm_x', 'Firm_y']].fillna('')
-
-    #print('The followng attorneys are newly registered:')
-    #print(df_newAttorneys[['Name', 'Firm_y', 'Registered as_y']].to_string(header=False, index=False, justify='right'))
-    #print('The followng attorneys have changed firms:')
-    #print(df_changedFirms[['Name', 'Firm_x', 'Firm_y']].to_string(header=False, index=False))
     
     return df_newAttorneys, df_changedFirms
 
@@ -233,6 +229,8 @@ def writeNewAttorneyTweet(newAttorneys):
         return None
     
     tweet = "Congratulations to the following newly registered IP attorneys: "
+
+    #TODO: Insert 'and' as appropriate. Possibly say their registration type
 
     for newAttorney in newAttorneys.itertuples():
         tweet += newAttorney.Name 
@@ -246,11 +244,14 @@ def writeNewAttorneyTweet(newAttorneys):
     return tweet
 
 def writeFirmChangeTweet(firmChanges):
+    # Takes in a dataframe
 
     if firmChanges.empty:
         return None
 
     tweet = "The following IP attorneys have recently changed firm: "
+
+    #TODO: Insert 'and' as appropriate
 
     for firmChange in firmChanges.itertuples():
         tweet += firmChange.Name + " from " + firmChange.Firm_x + " to " + firmChange.Firm_y + ", "
