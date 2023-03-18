@@ -33,6 +33,7 @@ def headers(access_token):
     headers = {
     'Authorization': f'Bearer {access_token}',
     'cache-control': 'no-cache',
+    'LinkedIn-Version': '202210',
     'X-Restli-Protocol-Version': '2.0.0'
     }
     return headers

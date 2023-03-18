@@ -291,7 +291,7 @@ def linkedInPost(tweets):
 
     urn = user_info_['id']
     
-    # UGC will replace shares over time.
+    # Newest Shares API
     api_url = 'https://api.linkedin.com/rest/posts'
     author = f'urn:li:person:{urn}'
     
@@ -317,8 +317,8 @@ def linkedInPost(tweets):
     
     print(message)
 
-    #r = requests.post(api_url, headers=headers, json=post_data)
-    #r.json()
+    r = requests.post(api_url, headers=headers_, json=post_data)
+    r.json()
 
 
 if __name__ == '__main__':
@@ -338,6 +338,3 @@ if __name__ == '__main__':
     linkedInPost(tweets)
 
     #tweet([newAttorneyTweet, firmChangeTweet])
-
-
-    #print(ttipa_bot.getFilePaths())
