@@ -1,13 +1,14 @@
 import requests
+
+from ln_auth import auth, headers, user_info
+
 from bs4 import BeautifulSoup, Tag
-import re
 import csv
 import datetime
 
 from pathlib import Path
 
 import pandas as pd
-import  xlwings as xw
 
 import tweepy
 
@@ -120,7 +121,7 @@ def writeToCSV(data):
 
     # open the file in the write mode
     with spreadsheet_name.open('w', encoding="utf-8", newline='') as f:
-        # create the csv writer
+        
         writer = csv.writer(f)
 
         # write header to the csv file
@@ -164,9 +165,12 @@ def getSpecifiedCsvs(date1, date2):
 def createDataframes(date1_path, date2_path):
 
     #Read the CSV data into dataframes
-    df_date1 = pd.read_csv(date1_path)
-    df_date2 = pd.read_csv(date2_path)
+    df_date1 = pd.read_csv(date1_path, dtype='string')
+    df_date2 = pd.read_csv(date2_path, dtype='string')
 
+    # Replace missing values with empty strings for comparison purposes
+    df_date1.fillna('')
+    df_date2.fillna('')
     #
     #diff = df_date2.compare(df_date1, align_axis=1)
 
@@ -207,26 +211,35 @@ def analyse(date1_path, date2_path):
 
     df_newAttorneys = df_names.query("NameExist == 'right_only'")
     df_lapsedAttorneys = df_names.query("NameExist == 'left_only'")
-    df_changedAttorneys = df_names.query("NameExist == 'both'")
+    df_changedDetails = df_names.query("NameExist == 'both'")
+    df_changedFirms = df_changedDetails.query("Firm_x != Firm_y")
 
-    print(df_changedAttorneys)
+    #print(df_newAttorneys)
 
-    print('The followng attorneys are newly registered:')
-    print(df_newAttorneys[['Name', 'Firm_y']])
-    print('The followng attorneys have updated details:')
-    print(df_changedAttorneys[['Name', 'Firm_x', 'Firm_y']])
+    df_newAttorneys = df_newAttorneys[['Name', 'Firm_y', 'Registered as_y']].fillna('')
+    df_changedFirms = df_changedFirms[['Name', 'Firm_x', 'Firm_y']].fillna('')
+
+    #print('The followng attorneys are newly registered:')
+    #print(df_newAttorneys[['Name', 'Firm_y', 'Registered as_y']].to_string(header=False, index=False, justify='right'))
+    #print('The followng attorneys have changed firms:')
+    #print(df_changedFirms[['Name', 'Firm_x', 'Firm_y']].to_string(header=False, index=False))
     
-    return None, None
+    return df_newAttorneys, df_changedFirms
 
 def writeNewAttorneyTweet(newAttorneys):
+    # Takes in a dataframe
 
-    if not newAttorneys:
+    if newAttorneys.empty:
         return None
     
-    tweet = "Congratulations to the following newly registered attorneys: "
+    tweet = "Congratulations to the following newly registered IP attorneys: "
 
-    for newAttorney in newAttorneys:
-        tweet = tweet + newAttorney + " of " + newAttorney.firm + ", "
+    for newAttorney in newAttorneys.itertuples():
+        tweet += newAttorney.Name 
+        if newAttorney.Firm_y != '':
+            tweet += " of " + newAttorney.Firm_y
+
+        tweet += ", "
 
     tweet = tweet[:-2] + "."
 
@@ -234,13 +247,13 @@ def writeNewAttorneyTweet(newAttorneys):
 
 def writeFirmChangeTweet(firmChanges):
 
-    if not firmChanges:
+    if firmChanges.empty:
         return None
 
-    tweet = "The following attorneys have changed firm: "
+    tweet = "The following IP attorneys have recently changed firm: "
 
-    for firmChange in firmChanges:
-        tweet = tweet + firmChange.name + " from " + firmChange.firm1 + " to " + firmChange.firm2 + ", "
+    for firmChange in firmChanges.itertuples():
+        tweet += firmChange.Name + " from " + firmChange.Firm_x + " to " + firmChange.Firm_y + ", "
     
     tweet = tweet[:-2] + "."
 
@@ -248,6 +261,9 @@ def writeFirmChangeTweet(firmChanges):
 
 
 def tweet(tweets):
+    if not tweets:
+        return
+
     # Authenticate to Twitter
     auth = tweepy.OAuthHandler("CONSUMER_KEY", "CONSUMER_SECRET")
     auth.set_access_token("ACCESS_TOKEN", "ACCESS_TOKEN_SECRET")
@@ -261,17 +277,67 @@ def tweet(tweets):
         api.update_status(tweet)
 
 
+
+def linkedInPost(tweets):
+    if not tweets:
+        return
+
+    credentials = 'credentials.json'
+    access_token = auth(credentials)
+    headers_ = headers(access_token) # Make the headers to attach to the API call.
+    
+    # Get user id to make a UGC post
+    user_info_ = user_info(headers_)
+
+    urn = user_info_['id']
+    
+    # UGC will replace shares over time.
+    api_url = 'https://api.linkedin.com/rest/posts'
+    author = f'urn:li:person:{urn}'
+    
+    message = "AUTOMATED TEST POST\n\n"
+    for tweet in tweets:
+        message += tweet + "\n\n"
+
+    link = 'https://github.com/Tradeylouish/TTIPABot'
+    message += link
+    
+    post_data = {
+    "author": author,
+    "commentary": message,
+    "visibility": "PUBLIC",
+    "distribution": {
+        "feedDistribution": "MAIN_FEED",
+        "targetEntities": [],
+        "thirdPartyDistributionChannels": []
+    },
+    "lifecycleState": "PUBLISHED",
+    "isReshareDisabledByAuthor": True
+    }
+    
+    print(message)
+
+    #r = requests.post(api_url, headers=headers, json=post_data)
+    #r.json()
+
+
 if __name__ == '__main__':
     #scrape()
     #(csv1, csv2) = getLatestCsvs()
-    (csv1, csv2) = getSpecifiedCsvs("2023-03-18", "2023-02-03")
+    (csv1, csv2) = getSpecifiedCsvs("2023-02-03", "2023-03-17")
 
     (newAttorneys, firmChanges) = analyse(csv1, csv2)
     
     newAttorneyTweet = writeNewAttorneyTweet(newAttorneys)
     firmChangeTweet = writeFirmChangeTweet(firmChanges)
 
-    tweet([newAttorneyTweet, firmChangeTweet])
+    # Compile the tweets and filter out None values
+    tweets = [newAttorneyTweet, firmChangeTweet]
+    tweets = list(filter(lambda item: item is not None, tweets))
+
+    linkedInPost(tweets)
+
+    #tweet([newAttorneyTweet, firmChangeTweet])
 
 
     #print(ttipa_bot.getFilePaths())
