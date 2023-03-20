@@ -12,13 +12,15 @@ import pandas as pd
 
 import tweepy
 
+CSV_FOLDER = "TTIPAB register saves"
+
 
 def TTIPABrequest(count):
     # Public API endpoint as determined by Inspect Element > Network > Requests on Google Chrome
     urlBase = "https://www.ttipattorney.gov.au//sxa/search/results/"
     urlOptions1 = "?s={21522AF6-8499-4C63-8CFA-02E2B97737BE}&itemid={8B94FE47-304A-4629-AD46-DD208EEF71AA}&sig=als&e=0&p="
     urlOptions2 = "&v=%7B2FCA44D4-EE00-43EC-BBBF-858C31387413%7D"
-    url =  urlBase + urlOptions1 + str(count) + urlOptions2
+    url =  f"{urlBase}{urlOptions1}{count}{urlOptions2}"
     return requests.get(url)
 
 def getFullRegister():
@@ -141,7 +143,8 @@ def scrape():
 
 def getLatestCsvs():
     # Get filepaths of all the csv files
-    csvFilenames = list(Path.cwd().glob('*.csv'))
+    folderPath = Path.cwd() / CSV_FOLDER
+    csvFilenames = list(folderPath.glob('*.csv'))
 
     # Take the last two entries - WARNING: ASSUMES ALPHABETICAL SORTING. SHOULD ENFORCE
     date1_path = csvFilenames[-2]
@@ -156,9 +159,8 @@ def getSpecifiedCsvs(date1, date2):
     if datetime.datetime.strptime(date1, FORMAT) > datetime.datetime.strptime(date2, FORMAT):
         date1, date2 = date2, date1
 
-    FOLDER = "TTIPAB register saves"
-    date1_path = Path.cwd() / FOLDER / (date1 + ".csv")
-    date2_path = Path.cwd() / FOLDER / (date2 + ".csv")
+    date1_path = Path.cwd() / CSV_FOLDER / (date1 + ".csv")
+    date2_path = Path.cwd() / CSV_FOLDER / (date2 + ".csv")
 
     return date1_path, date2_path
 
@@ -212,6 +214,8 @@ def analyse(date1_path, date2_path):
     df_newAttorneys = df_names.query("NameExist == 'right_only'")
     df_lapsedAttorneys = df_names.query("NameExist == 'left_only'")
     df_changedDetails = df_names.query("NameExist == 'both'")
+    df_changedDetails = df_changedDetails.fillna('')
+
     df_changedFirms = df_changedDetails.query("Firm_x != Firm_y")
 
     #TODO: Consider doing a comparison of registrations and capturing those going from single to dual registered
@@ -222,6 +226,17 @@ def analyse(date1_path, date2_path):
     
     return df_newAttorneys, df_changedFirms
 
+def fixGrammar(string):
+    # Replace trailing comma with full stop
+    string = string[:-2] + "."
+    
+    lastCommaIndex = string.rfind(",")
+    # If there's no comma
+    if lastCommaIndex == -1:
+        return string
+    # Insert 'and'
+    return string[ : lastCommaIndex + 2] + "and " + string[lastCommaIndex + 2 : ]
+
 def writeNewAttorneyTweet(newAttorneys):
     # Takes in a dataframe
 
@@ -230,16 +245,16 @@ def writeNewAttorneyTweet(newAttorneys):
     
     tweet = "Congratulations to the following newly registered IP attorneys: "
 
-    #TODO: Insert 'and' as appropriate. Possibly say their registration type
+    #TODO: Possibly say their registration type
 
     for newAttorney in newAttorneys.itertuples():
         tweet += newAttorney.Name 
         if newAttorney.Firm_y != '':
-            tweet += " of " + newAttorney.Firm_y
+            tweet += f" of {newAttorney.Firm_y}"
 
         tweet += ", "
-
-    tweet = tweet[:-2] + "."
+        
+    tweet = fixGrammar(tweet)
 
     return tweet
 
@@ -251,12 +266,20 @@ def writeFirmChangeTweet(firmChanges):
 
     tweet = "The following IP attorneys have recently changed firm: "
 
-    #TODO: Insert 'and' as appropriate
+    #TODO: Maybe tidy up a little
 
     for firmChange in firmChanges.itertuples():
-        tweet += firmChange.Name + " from " + firmChange.Firm_x + " to " + firmChange.Firm_y + ", "
+        noFirmSubstitute = "independent"
+
+        tweet += f"{firmChange.Name} from " 
+        tweet += f"{firmChange.Firm_x}" if firmChange.Firm_x != '' else noFirmSubstitute
+
+        tweet += " to "
+        tweet += f"{firmChange.Firm_y}" if firmChange.Firm_y != '' else noFirmSubstitute
+
+        tweet += ", "
     
-    tweet = tweet[:-2] + "."
+    tweet = fixGrammar(tweet)
 
     return tweet
 
@@ -281,15 +304,15 @@ def tweet(tweets):
 
 def linkedInPost(tweets):
     if not tweets:
+        #TODO put some logic here instead if it's decided no changes should still result in a post
         return
 
     credentials = 'credentials.json'
     access_token = auth(credentials)
     headers_ = headers(access_token) # Make the headers to attach to the API call.
     
-    # Get user id to make a UGC post
+    # Get user id to make a post
     user_info_ = user_info(headers_)
-
     urn = user_info_['id']
     
     # Newest Shares API
@@ -318,14 +341,14 @@ def linkedInPost(tweets):
     
     print(message)
 
-    r = requests.post(api_url, headers=headers_, json=post_data)
-    r.json()
+    #r = requests.post(api_url, headers=headers_, json=post_data)
+    #r.json()
 
 
 if __name__ == '__main__':
     #scrape()
-    #(csv1, csv2) = getLatestCsvs()
-    (csv1, csv2) = getSpecifiedCsvs("2023-02-03", "2023-03-17")
+    (csv1, csv2) = getLatestCsvs()
+    #(csv1, csv2) = getSpecifiedCsvs("2023-01-27", "2023-03-17")
 
     (newAttorneys, firmChanges) = analyse(csv1, csv2)
     
@@ -335,7 +358,11 @@ if __name__ == '__main__':
     # Compile the tweets and filter out None values
     tweets = [newAttorneyTweet, firmChangeTweet]
     tweets = list(filter(lambda item: item is not None, tweets))
-
-    linkedInPost(tweets)
+    
+    #TODO Should a linkedIn post be made to report no changes?
+    if not tweets:
+        print("No recent changes to the register.")
+    else:
+        linkedInPost(tweets)
 
     #tweet([newAttorneyTweet, firmChangeTweet])
