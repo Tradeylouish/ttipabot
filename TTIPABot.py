@@ -10,8 +10,6 @@ from pathlib import Path
 
 import pandas as pd
 
-import tweepy
-
 CSV_FOLDER = "TTIPAB register saves"
 
 
@@ -284,24 +282,6 @@ def writeFirmChangeTweet(firmChanges):
     return tweet
 
 
-def tweet(tweets):
-    if not tweets:
-        return
-
-    # Authenticate to Twitter
-    auth = tweepy.OAuthHandler("CONSUMER_KEY", "CONSUMER_SECRET")
-    auth.set_access_token("ACCESS_TOKEN", "ACCESS_TOKEN_SECRET")
-
-    # Create API object
-    api = tweepy.API(auth)
-
-    for tweet in tweets:
-        if tweet == None: 
-            continue
-        api.update_status(tweet)
-
-
-
 def linkedInPost(tweets):
     if not tweets:
         #TODO put some logic here instead if it's decided no changes should still result in a post
@@ -363,6 +343,7 @@ if __name__ == '__main__':
     if not tweets:
         print("No recent changes to the register.")
     else:
-        linkedInPost(tweets)
-
-    #tweet([newAttorneyTweet, firmChangeTweet])
+        #TODO decouple linkedin API stuff from printing draft posts
+        for tweet in tweets:
+            print(tweet)
+        #linkedInPost(tweets)
