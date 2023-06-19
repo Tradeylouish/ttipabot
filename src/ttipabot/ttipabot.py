@@ -235,52 +235,55 @@ def fixGrammar(string):
     # Insert 'and'
     return string[ : lastCommaIndex + 2] + "and " + string[lastCommaIndex + 2 : ]
 
-def writeNewAttorneyTweet(newAttorneys):
+def writeNewAttorneySummary(newAttorneys):
     # Takes in a dataframe
 
     if newAttorneys.empty:
         return None
     
-    tweet = "Congratulations to the following newly registered IP attorneys: "
+    summary = "Congratulations to the following newly registered IP attorneys: "
 
     #TODO: Possibly say their registration type
 
     for newAttorney in newAttorneys.itertuples():
-        tweet += newAttorney.Name 
+        summary += newAttorney.Name 
         if newAttorney.Firm_y != '':
-            tweet += f" of {newAttorney.Firm_y}"
+            summary += f" of {newAttorney.Firm_y}"
 
-        tweet += ", "
+        summary += ", "
         
-    tweet = fixGrammar(tweet)
+    summary = fixGrammar(summary)
 
-    return tweet
+    return summary
 
-def writeFirmChangeTweet(firmChanges):
+def writeFirmChangeSummary(firmChanges):
     # Takes in a dataframe
 
     if firmChanges.empty:
         return None
 
-    tweet = "The following IP attorneys have recently changed firm: "
+    summary = "The following IP attorneys have recently changed firm: "
 
     #TODO: Maybe tidy up a little
 
     for firmChange in firmChanges.itertuples():
         noFirmSubstitute = "independent"
 
-        tweet += f"{firmChange.Name} from " 
-        tweet += f"{firmChange.Firm_x}" if firmChange.Firm_x != '' else noFirmSubstitute
+        summary += f"{firmChange.Name} from " 
+        summary += f"{firmChange.Firm_x}" if firmChange.Firm_x != '' else noFirmSubstitute
 
-        tweet += " to "
-        tweet += f"{firmChange.Firm_y}" if firmChange.Firm_y != '' else noFirmSubstitute
+        summary += " to "
+        summary += f"{firmChange.Firm_y}" if firmChange.Firm_y != '' else noFirmSubstitute
 
-        tweet += ", "
+        summary += ", "
     
-    tweet = fixGrammar(tweet)
+    summary = fixGrammar(summary)
 
-    return tweet
+    return summary
 
+
+def testFunction(num12, num2):
+    return num12 + num2
 
 def linkedInPost(tweets):
     if not tweets:
@@ -332,18 +335,18 @@ if __name__ == '__main__':
 
     (newAttorneys, firmChanges) = analyse(csv1, csv2)
     
-    newAttorneyTweet = writeNewAttorneyTweet(newAttorneys)
-    firmChangeTweet = writeFirmChangeTweet(firmChanges)
+    newAttorneySummary = writeNewAttorneySummary(newAttorneys)
+    firmChangeSummary = writeFirmChangeSummary(firmChanges)
 
-    # Compile the tweets and filter out None values
-    tweets = [newAttorneyTweet, firmChangeTweet]
-    tweets = list(filter(lambda item: item is not None, tweets))
+    # Compile the summaries and filter out None values
+    summaries = [newAttorneySummary, firmChangeSummary]
+    summaries = list(filter(lambda item: item is not None, summaries))
     
     #TODO Should a linkedIn post be made to report no changes?
-    if not tweets:
+    if not summaries:
         print("No recent changes to the register.")
     else:
         #TODO decouple linkedin API stuff from printing draft posts
-        for tweet in tweets:
+        for tweet in summaries:
             print(tweet)
         #linkedInPost(tweets)
