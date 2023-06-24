@@ -37,77 +37,86 @@ def getFullRegister():
     # Parse and extract all the data
     soup = BeautifulSoup(rawHTML, 'lxml')
 
-    results = soup.find_all(class_="list-item attorney")
+    attorneys = soup.find_all(class_="list-item attorney")
 
-    return results
+    return attorneys
 
 def getRegistrations(result):
     # Check tags for registrations, convert to comma separated string
-    registeredAs = []
-    for tag in result.find_all(class_="ipr-tag"):
-        registeredAs += tag.contents
-    
+    registeredAs = [tag.string for tag in result.find_all(class_="ipr-tag")]
     registeredAs = ", ".join(registeredAs)
 
     return registeredAs
 
 def getPhoneNumber(result):
     # Get phone numbers
-    if not result.find(class_="block-1"): 
+
+    phoneTag = result.find("span", string=" Phone ")
+    if phoneTag is None: 
+        print("not found")
         return ""
     
-    for child in result.find(class_="block-1").children:
-        if isinstance(child, Tag) and child.a:
-            phone = child.a.contents[0]
+    #print(phoneTag.parent)
+    phone = phoneTag.find_next_sibling()
+    
+    phone = phone.find(True).string
 
     return phone
 
 def getEmail(result):
     # Get emails
-    if not result.find(class_="block-2"): 
+    emailTag = result.find("span", string=" Email ")
+    if emailTag is None:
         return ""
-    
-    for child in result.find(class_="block-2").children:
-        if isinstance(child, Tag) and child.a:
-            email = child.a.contents[0]
+
+    # The actual email is nested in the next tag
+    email = emailTag.find_next_sibling()
+    #print(email)
+    email = email.find(True).string
 
     return email
 
-def getFirmAndAddress(result):
-        # Get firm and address
-    firm = ""
-    address = ""
-    for block in result.find_all(class_="block"):
-        firmFlag = False
-        addressFlag = False
-        for span in block.find_all('span'):
-            if span.contents[0] == " Firm ": 
-                firmFlag = True
-            elif span.contents[0] == " Address ":
-                addressFlag = True
-            elif firmFlag:
-                firm = span.contents[0].strip()
-                firmFlag = False
-            elif addressFlag:
-                address = span.contents[0].strip()
-                addressFlag = False
+def getFirm(result):
+    firmTag = result.find("span", string=" Firm ")
+    if firmTag is None:
+        return ""
     
-    return firm, address
+    firm = firmTag.next_sibling.string
+
+    return firm
+
+def getAddress(result):
+    addressTag = result.find("span", string=" Address ")
+    if addressTag is None:
+        return ""
+    
+    address = addressTag.find_next_sibling()
+    print(address)
+    address = address.string
+
+    print(address)
+
+    return address
+
+def getContactData(result):
+    tag = result.find("span", string="Address")
 
 
-def extractData(results):
+def extractData(attorneys):
+    #Takes a list of soup objects representing attorneys
     data = []
 
-    for result in results:
+    for attorney in attorneys:
         # Skip blank name entries
-        name = result.h4.contents
+        name = attorney.h4.contents
         if not name: continue
-        name = result.h4.contents[0]
+        name = attorney.h4.string
 
-        registeredAs = getRegistrations(result)
-        phone = getPhoneNumber(result)
-        email = getEmail(result)
-        (firm, address) = getFirmAndAddress(result)
+        registeredAs = getRegistrations(attorney)
+        phone = getPhoneNumber(attorney)
+        email = getEmail(attorney)
+        firm = getFirm(attorney)
+        address = getAddress(attorney)
 
         data.append([name, phone, email, firm, address, registeredAs])
 
