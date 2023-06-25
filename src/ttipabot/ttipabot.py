@@ -90,26 +90,26 @@ def scrape():
     data = parseRegister(results)
     writeToCSV(data)
 
-def getLatestCsvs():
-    # Get filepaths of all the csv files
-    folderPath = Path.cwd() / CSV_FOLDER
-    csvFilenames = list(folderPath.glob('*.csv'))
+def getCsvFilepaths(folderPath):
+    return list(folderPath.glob('*.csv'))
 
-    # Take the last two entries - WARNING: ASSUMES ALPHABETICAL SORTING. SHOULD ENFORCE
-    date1_path = csvFilenames[-2]
-    date2_path = csvFilenames[-1]
+def getLatestCsvs(csvFilepaths):
+    # Filename format means default sort will time-order
+    csvFilepaths.sort()
 
-    return date1_path, date2_path
+    # Return the last two entries
+    return csvFilepaths[-2], csvFilepaths[-1]
 
-def getSpecifiedCsvs(date1, date2):
-    
+def getSpecifiedCsvs(csvFilepaths, date1, date2):
+
     # Ensure date1 is the earliest date, so later code can assume this
     FORMAT = "%Y-%m-%d"
     if datetime.datetime.strptime(date1, FORMAT) > datetime.datetime.strptime(date2, FORMAT):
         date1, date2 = date2, date1
 
-    date1_path = Path.cwd() / CSV_FOLDER / (date1 + ".csv")
-    date2_path = Path.cwd() / CSV_FOLDER / (date2 + ".csv")
+    # Look for a filepath that contain the date string
+    date1_path = next((path for path in csvFilepaths if date1 in str(path)), None)
+    date2_path = next((path for path in csvFilepaths if date2 in str(path)), None)
 
     return date1_path, date2_path
 
@@ -232,10 +232,6 @@ def writeFirmChangeSummary(firmChanges):
 
     return summary
 
-
-def testFunction(num12, num2):
-    return num12 + num2
-
 def linkedInPost(tweets):
     if not tweets:
         #TODO put some logic here instead if it's decided no changes should still result in a post
@@ -281,8 +277,11 @@ def linkedInPost(tweets):
 
 if __name__ == '__main__':
     scrape()
-    (csv1, csv2) = getLatestCsvs()
-    #(csv1, csv2) = getSpecifiedCsvs("2023-01-27", "2023-03-17")
+    
+    csvFilepaths = getCsvFilepaths(Path.cwd() / CSV_FOLDER)
+
+    (csv1, csv2) = getLatestCsvs(csvFilepaths)
+    #(csv1, csv2) = getSpecifiedCsvs(csvFilepaths, "2023-01-27", "2023-03-17")
 
     (newAttorneys, firmChanges) = analyse(csv1, csv2)
     
