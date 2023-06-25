@@ -34,7 +34,7 @@ def getFullRegister():
     rawHTML = rawHTML.replace("\\n", "")
     rawHTML = rawHTML.replace("\\", "")
 
-    writeRawHTML(rawHTML)
+    #writeRawHTML(rawHTML)
 
     # Parse and extract all the data
     soup = BeautifulSoup(rawHTML, 'lxml')
@@ -52,24 +52,20 @@ def getContactData(result, searchString):
     #Could be two strings for dual registrations, so comma join
     return ", ".join(tag.find_next_sibling().stripped_strings) 
 
+def getAttorneyData(attorney):
+    name = getContactData(attorney, " Attorney ")
+    registeredAs = getContactData(attorney, " Registered as")
+    phone = getContactData(attorney, " Phone ")
+    email = getContactData(attorney, " Email ")
+    firm = getContactData(attorney, " Firm ")
+    address = getContactData(attorney, " Address ")
 
-def extractData(attorneys):
+    return [name, phone, email, firm, address, registeredAs]
+
+def parseRegister(attorneys):
     #Takes a list of soup objects representing attorneys
-    data = []
-
-    for attorney in attorneys:
-        
-        name = getContactData(attorney, " Attorney ")
-        # Skip blank name entries
-        if name == "": continue
-
-        registeredAs = getContactData(attorney, " Registered as")
-        phone = getContactData(attorney, " Phone ")
-        email = getContactData(attorney, " Email ")
-        firm = getContactData(attorney, " Firm ")
-        address = getContactData(attorney, " Address ")
-
-        data.append([name, phone, email, firm, address, registeredAs])
+    data = [attorney.getAttorneyData() for attorney in attorneys 
+            if getContactData(attorney, " Attorney ") != ""]
 
     return data
 
@@ -96,7 +92,7 @@ def writeRawHTML(rawHTML):
 
 def scrape():
     results = getFullRegister()
-    data = extractData(results)
+    data = parseRegister(results)
     writeToCSV(data)
 
 def getLatestCsvs():
