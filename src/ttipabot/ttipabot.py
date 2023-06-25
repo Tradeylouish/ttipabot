@@ -53,14 +53,9 @@ def getContactData(result, searchString):
     return ", ".join(tag.find_next_sibling().stripped_strings) 
 
 def getAttorneyData(attorney):
-    name = getContactData(attorney, " Attorney ")
-    registeredAs = getContactData(attorney, " Registered as")
-    phone = getContactData(attorney, " Phone ")
-    email = getContactData(attorney, " Email ")
-    firm = getContactData(attorney, " Firm ")
-    address = getContactData(attorney, " Address ")
 
-    return [name, phone, email, firm, address, registeredAs]
+    fields = [" Attorney ", " Phone ", " Email ", " Firm ", " Address ", " Registered as"]
+    return [getContactData(attorney, field) for field in fields]
 
 def parseRegister(attorneys):
     #Takes a list of soup objects representing attorneys

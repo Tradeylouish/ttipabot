@@ -47,3 +47,13 @@ def test_registrations_parse():
 def test_address_parse():
     firstExampleAddress = "Level 14, Aon Centre, 29 Customs Street West, Auckland 1010, New Zealand"
     assert ttipabot.getContactData(firstExampleAttorney, " Address ") == firstExampleAddress, f"should be {firstExampleAddress}"
+
+def test_all_data_parse():
+    exampleData = ["Louis Francisco Yates Habberfield-Short", 
+                   "+64 9 353 5423", 
+                   "louis.habberfield-short@ajpark.com", 
+                   "", 
+                   "Level 14, Aon Centre, 29 Customs Street West, Auckland 1010, New Zealand", 
+                   "Patents"]
+    
+    assert ttipabot.getAttorneyData(firstExampleAttorney) == exampleData
