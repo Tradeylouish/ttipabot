@@ -34,6 +34,8 @@ def getFullRegister():
     rawHTML = rawHTML.replace("\\n", "")
     rawHTML = rawHTML.replace("\\", "")
 
+    writeRawHTML(rawHTML)
+
     # Parse and extract all the data
     soup = BeautifulSoup(rawHTML, 'lxml')
 
@@ -41,65 +43,14 @@ def getFullRegister():
 
     return attorneys
 
-def getRegistrations(result):
-    # Check tags for registrations, convert to comma separated string
-    registeredAs = [tag.string for tag in result.find_all(class_="ipr-tag")]
-    registeredAs = ", ".join(registeredAs)
-
-    return registeredAs
-
-def getPhoneNumber(result):
-    # Get phone numbers
-
-    phoneTag = result.find("span", string=" Phone ")
-    if phoneTag is None: 
-        print("not found")
+def getContactData(result, searchString):
+    tag = result.find("span", string=searchString)
+    if tag is None:
         return ""
     
-    #print(phoneTag.parent)
-    phone = phoneTag.find_next_sibling()
-    
-    phone = phone.find(True).string
-
-    return phone
-
-def getEmail(result):
-    # Get emails
-    emailTag = result.find("span", string=" Email ")
-    if emailTag is None:
-        return ""
-
-    # The actual email is nested in the next tag
-    email = emailTag.find_next_sibling()
-    #print(email)
-    email = email.find(True).string
-
-    return email
-
-def getFirm(result):
-    firmTag = result.find("span", string=" Firm ")
-    if firmTag is None:
-        return ""
-    
-    firm = firmTag.next_sibling.string
-
-    return firm
-
-def getAddress(result):
-    addressTag = result.find("span", string=" Address ")
-    if addressTag is None:
-        return ""
-    
-    address = addressTag.find_next_sibling()
-    print(address)
-    address = address.string
-
-    print(address)
-
-    return address
-
-def getContactData(result):
-    tag = result.find("span", string="Address")
+    #Data is always in (non-whitespace) descendant string(s) of the tag that follows
+    #Could be two strings for dual registrations, so comma join
+    return ", ".join(tag.find_next_sibling().stripped_strings) 
 
 
 def extractData(attorneys):
@@ -107,16 +58,16 @@ def extractData(attorneys):
     data = []
 
     for attorney in attorneys:
+        
+        name = getContactData(attorney, " Attorney ")
         # Skip blank name entries
-        name = attorney.h4.contents
-        if not name: continue
-        name = attorney.h4.string
+        if name == "": continue
 
-        registeredAs = getRegistrations(attorney)
-        phone = getPhoneNumber(attorney)
-        email = getEmail(attorney)
-        firm = getFirm(attorney)
-        address = getAddress(attorney)
+        registeredAs = getContactData(attorney, " Registered as")
+        phone = getContactData(attorney, " Phone ")
+        email = getContactData(attorney, " Email ")
+        firm = getContactData(attorney, " Firm ")
+        address = getContactData(attorney, " Address ")
 
         data.append([name, phone, email, firm, address, registeredAs])
 
@@ -140,7 +91,7 @@ def writeToCSV(data):
         writer.writerows(data)
 
 def writeRawHTML(rawHTML):
-    with open("registerHTML.txt", 'w', encoding="utf-8") as f:
+    with open("registerDump.txt", 'w', encoding="utf-8") as f:
         f.write(rawHTML)
 
 def scrape():
@@ -338,7 +289,7 @@ def linkedInPost(tweets):
 
 
 if __name__ == '__main__':
-    #scrape()
+    scrape()
     (csv1, csv2) = getLatestCsvs()
     #(csv1, csv2) = getSpecifiedCsvs("2023-01-27", "2023-03-17")
 
