@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-CSV_FOLDER = "TTIPAB register saves"
+CSV_FOLDER = Path.cwd() / "TTIPAB register saves"
 
 
 def TTIPABrequest(count):
@@ -64,9 +64,9 @@ def parseRegister(attorneys):
 
     return data
 
-def writeToCSV(data):
+def writeToCSV(data, folderpath):
     #Print the register contents to a CSV file
-    spreadsheet_name = Path.cwd() / "TTIPAB register saves" / (str(datetime.date.today()) + '.csv')
+    spreadsheet_name = folderpath / (str(datetime.date.today()) + '.csv')
 
     header = ['Name', 'Phone', 'Email', 'Firm', 'Address', 'Registered as']
 
@@ -88,7 +88,7 @@ def writeRawHTML(rawHTML):
 def scrape():
     results = getFullRegister()
     data = parseRegister(results)
-    writeToCSV(data)
+    writeToCSV(data, CSV_FOLDER)
 
 def getCsvFilepaths(folderPath):
     return list(folderPath.glob('*.csv'))
@@ -156,14 +156,12 @@ def analyse(date1_path, date2_path):
     (df_date1, df_date2) = createDataframes(date1_path, date2_path)
     (df_left, df_right) = getDiffs(df_date1, df_date2)
     
-
     # Find which names are new
     df_names = pd.merge(df_left, df_right, on='Name', how="outer", indicator="NameExist")
 
     df_newAttorneys = df_names.query("NameExist == 'right_only'")
     df_lapsedAttorneys = df_names.query("NameExist == 'left_only'")
     df_changedDetails = df_names.query("NameExist == 'both'")
-    df_changedDetails = df_changedDetails.fillna('')
 
     df_changedFirms = df_changedDetails.query("Firm_x != Firm_y")
 
@@ -276,9 +274,9 @@ def linkedInPost(tweets):
 
 
 if __name__ == '__main__':
-    scrape()
+    #scrape()
     
-    csvFilepaths = getCsvFilepaths(Path.cwd() / CSV_FOLDER)
+    csvFilepaths = getCsvFilepaths(CSV_FOLDER)
 
     (csv1, csv2) = getLatestCsvs(csvFilepaths)
     #(csv1, csv2) = getSpecifiedCsvs(csvFilepaths, "2023-01-27", "2023-03-17")
