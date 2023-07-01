@@ -53,13 +53,13 @@ def getContactData(result, searchString):
     return ", ".join(tag.find_next_sibling().stripped_strings) 
 
 def getAttorneyData(attorney):
-
+    #Takes a soup representing an attorney
     fields = [" Attorney ", " Phone ", " Email ", " Firm ", " Address ", " Registered as"]
     return [getContactData(attorney, field) for field in fields]
 
 def parseRegister(attorneys):
     #Takes a list of soup objects representing attorneys
-    data = [attorney.getAttorneyData() for attorney in attorneys 
+    data = [getAttorneyData(attorney) for attorney in attorneys 
             if getContactData(attorney, " Attorney ") != ""]
 
     return data
@@ -274,7 +274,7 @@ def linkedInPost(tweets):
 
 
 if __name__ == '__main__':
-    #scrape()
+    scrape()
     
     csvFilepaths = getCsvFilepaths(CSV_FOLDER)
 

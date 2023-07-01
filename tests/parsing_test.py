@@ -2,7 +2,7 @@ import pytest
 from bs4 import BeautifulSoup, Tag
 import ttipabot
 
-# Setting up example attorney HTML to test on
+# Helper function for setting up example attorney HTML to test on
 def read_example_attorney(filename):
     rawHTML = ""
 
@@ -11,16 +11,24 @@ def read_example_attorney(filename):
     soup = BeautifulSoup(rawHTML, 'lxml')
     return soup.find(class_="list-item attorney")
 
+# Globally accessible attorney examples
 firstExampleAttorney = read_example_attorney("attorneyHTMLexample.txt")
 secondExampleAttorney = read_example_attorney("attorneyHTMLexample2.txt")
+blankAttorney = read_example_attorney("blankAttorneyExample.txt")
 
 def test_name_parse():
     exampleName = "Louis Francisco Yates Habberfield-Short"
     assert ttipabot.getContactData(firstExampleAttorney, " Attorney ") == exampleName, f"should be {exampleName}"
 
+    exampleName = ""
+    assert ttipabot.getContactData(blankAttorney, " Attorney ") == exampleName, f"should be {exampleName}"
+
 def test_phone_parse():
     examplePhoneNumber = "+64 9 353 5423"
-    assert ttipabot.getContactData(firstExampleAttorney, " Phone ") == examplePhoneNumber, f"should be {examplePhoneNumber}"        
+    assert ttipabot.getContactData(firstExampleAttorney, " Phone ") == examplePhoneNumber, f"should be {examplePhoneNumber}"
+
+    examplePhoneNumber = ""
+    assert ttipabot.getContactData(blankAttorney, " Phone ") == examplePhoneNumber, f"should be {examplePhoneNumber}"  
 
 def test_email_parse():
     exampleEmail = "louis.habberfield-short@ajpark.com"
@@ -57,3 +65,22 @@ def test_all_data_parse():
                    "Patents"]
     
     assert ttipabot.getAttorneyData(firstExampleAttorney) == exampleData
+
+def test_multiple_attorneys_data_parse():
+
+    exampleAttorneys = [blankAttorney, firstExampleAttorney, secondExampleAttorney]
+    exampleData = [["Louis Francisco Yates Habberfield-Short", 
+                "+64 9 353 5423", 
+                "louis.habberfield-short@ajpark.com", 
+                "", 
+                "Level 14, Aon Centre, 29 Customs Street West, Auckland 1010, New Zealand", 
+                "Patents"], 
+                ["Donald Iain Angus", 
+                "08 8212 3133", 
+                "collison@collison.com.au", 
+                "Collison & Co", 
+                "Level 4 70 Light Square Adelaide SA 5000 Australia", 
+                "Patents, Trade marks"]
+                ]
+
+    assert ttipabot.parseRegister(exampleAttorneys) == exampleData
