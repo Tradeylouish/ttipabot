@@ -1,5 +1,7 @@
 import requests
 
+import click
+
 from ln_auth import auth, headers, user_info
 
 from bs4 import BeautifulSoup, Tag
@@ -12,6 +14,10 @@ import pandas as pd
 
 CSV_FOLDER = Path.cwd() / "TTIPAB register saves"
 
+@click.group()
+def cli():
+    pass
+
 
 def TTIPABrequest(count):
     # Public API endpoint as determined by Inspect Element > Network > Requests on Google Chrome
@@ -19,7 +25,7 @@ def TTIPABrequest(count):
     urlOptions1 = "?s={21522AF6-8499-4C63-8CFA-02E2B97737BE}&itemid={8B94FE47-304A-4629-AD46-DD208EEF71AA}&sig=als&e=0&p="
     urlOptions2 = "&v=%7B2FCA44D4-EE00-43EC-BBBF-858C31387413%7D"
     url =  f"{urlBase}{urlOptions1}{count}{urlOptions2}"
-    return requests.get(url)
+    return requests.get(url, stream=True)
 
 def getFullRegister():
     #Do an intial ping of the register to determine the total number of results to be requested
@@ -85,6 +91,7 @@ def writeRawHTML(rawHTML):
     with open("registerDump.txt", 'w', encoding="utf-8") as f:
         f.write(rawHTML)
 
+@cli.command()
 def scrape():
     results = getFullRegister()
     data = parseRegister(results)
@@ -272,14 +279,25 @@ def linkedInPost(tweets):
     #r = requests.post(api_url, headers=headers_, json=post_data)
     #r.json()
 
+def getLatestDates():
 
-if __name__ == '__main__':
-    scrape()
-    
     csvFilepaths = getCsvFilepaths(CSV_FOLDER)
 
-    (csv1, csv2) = getLatestCsvs(csvFilepaths)
-    #(csv1, csv2) = getSpecifiedCsvs(csvFilepaths, "2023-01-27", "2023-03-17")
+    # Filename format means default sort will time-order
+    csvFilepaths.sort()
+
+    # Return the last two entries as a list of filename strings to match cli arg reqs
+    return [Path(csvFilepaths[-2]).stem, Path(csvFilepaths[-1]).stem]
+
+@cli.command()
+@click.option('--dates', nargs=2, default=getLatestDates(), help='dates to compare')
+def compare(dates):
+
+    date1, date2 = dates
+
+    csvFilepaths = getCsvFilepaths(CSV_FOLDER)
+
+    (csv1, csv2) = getSpecifiedCsvs(csvFilepaths, date1, date2)
 
     (newAttorneys, firmChanges) = analyse(csv1, csv2)
     
@@ -298,3 +316,6 @@ if __name__ == '__main__':
         for tweet in summaries:
             print(tweet)
         #linkedInPost(tweets)
+
+if __name__ == '__main__':
+    cli()
