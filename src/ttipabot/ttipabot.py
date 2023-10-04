@@ -2,8 +2,6 @@ import requests
 
 import click
 
-from ln_auth import auth, headers, user_info
-
 from bs4 import BeautifulSoup, Tag
 import csv
 import datetime
@@ -107,18 +105,11 @@ def getLatestCsvs(csvFilepaths):
     # Return the last two entries
     return csvFilepaths[-2], csvFilepaths[-1]
 
-def getSpecifiedCsvs(csvFilepaths, date1, date2):
-
-    # Ensure date1 is the earliest date, so later code can assume this
-    FORMAT = "%Y-%m-%d"
-    if datetime.datetime.strptime(date1, FORMAT) > datetime.datetime.strptime(date2, FORMAT):
-        date1, date2 = date2, date1
-
+def getSpecifiedCsvs(csvFilepaths, dates):
     # Look for a filepath that contain the date string
-    date1_path = next((path for path in csvFilepaths if date1 in str(path)), None)
-    date2_path = next((path for path in csvFilepaths if date2 in str(path)), None)
+    datePaths = [next((path for path in csvFilepaths if date in str(path)), None) for date in dates]
 
-    return date1_path, date2_path
+    return datePaths
 
 def createDataframes(date1_path, date2_path):
 
@@ -158,7 +149,7 @@ def getDiffs(df_date1, df_date2):
 
     return df_left, df_right
 
-def analyse(date1_path, date2_path):
+def compareCsvs(date1_path, date2_path):
     # Data comparison steps
     (df_date1, df_date2) = createDataframes(date1_path, date2_path)
     (df_left, df_right) = getDiffs(df_date1, df_date2)
@@ -237,69 +228,55 @@ def writeFirmChangeSummary(firmChanges):
 
     return summary
 
-def linkedInPost(tweets):
-    if not tweets:
-        #TODO put some logic here instead if it's decided no changes should still result in a post
-        return
-
-    credentials = 'credentials.json'
-    access_token = auth(credentials)
-    headers_ = headers(access_token) # Make the headers to attach to the API call.
-    
-    # Get user id to make a post
-    user_info_ = user_info(headers_)
-    urn = user_info_['id']
-    
-    # Newest Shares API
-    api_url = 'https://api.linkedin.com/rest/posts'
-    author = f'urn:li:person:{urn}'
-    
-    message = "AUTOMATED TEST POST\n\n"
-    for tweet in tweets:
-        message += tweet + "\n\n"
-
-    link = 'https://github.com/Tradeylouish/TTIPABot'
-    message += link
-    
-    post_data = {
-    "author": author,
-    "commentary": message,
-    "visibility": "PUBLIC",
-    "distribution": {
-        "feedDistribution": "MAIN_FEED",
-        "targetEntities": [],
-        "thirdPartyDistributionChannels": []
-    },
-    "lifecycleState": "PUBLISHED",
-    "isReshareDisabledByAuthor": True
-    }
-    
-    print(message)
-
-    #r = requests.post(api_url, headers=headers_, json=post_data)
-    #r.json()
-
-def getLatestDates():
+def getLatestDates(num):
 
     csvFilepaths = getCsvFilepaths(CSV_FOLDER)
 
     # Filename format means default sort will time-order
     csvFilepaths.sort()
 
-    # Return the last two entries as a list of filename strings to match cli arg reqs
-    return [Path(csvFilepaths[-2]).stem, Path(csvFilepaths[-1]).stem]
+    # Create a list of strings representing the most recent dates, length equal to num argument
+    dates = [Path(csvFilepaths[-i]).stem for i in range(1, num+1)]
+
+    return dates
 
 @cli.command()
-@click.option('--dates', nargs=2, default=getLatestDates(), help='dates to compare')
+@click.option('--date', default=getLatestDates(num=1)[0], help='date to rank name lengths')
+@click.option('--num', default=10, help='number of names in top ranking')
+def rankNames(date, num):
+
+    #print(dates)
+    csvFilepaths = getCsvFilepaths(CSV_FOLDER)
+    csv = getSpecifiedCsvs(csvFilepaths, [date])[0]
+
+    #TODO vectorise existing code above
+
+    df = pd.read_csv(csv, dtype='string')
+
+    # Replace missing values with empty strings for comparison purposes
+    df.fillna('')
+
+    # Sort names and reindex to show ranking
+    df = df.sort_values(by='Name', ascending=False, key=lambda col: col.str.len())
+    df.reset_index(inplace=True)
+    print(df['Name'].head(num))
+
+
+@cli.command()
+@click.option('--dates', nargs=2, default=getLatestDates(num=2), help='dates to compare')
 def compare(dates):
 
     date1, date2 = dates
-
+    # Ensure date1 is the earliest date, so later code can assume this
+    FORMAT = "%Y-%m-%d"
+    if datetime.datetime.strptime(date1, FORMAT) > datetime.datetime.strptime(date2, FORMAT):
+        date1, date2 = date2, date1
+    
     csvFilepaths = getCsvFilepaths(CSV_FOLDER)
 
-    (csv1, csv2) = getSpecifiedCsvs(csvFilepaths, date1, date2)
+    (csv1, csv2) = getSpecifiedCsvs(csvFilepaths, [date1, date2])
 
-    (newAttorneys, firmChanges) = analyse(csv1, csv2)
+    (newAttorneys, firmChanges) = compareCsvs(csv1, csv2)
     
     newAttorneySummary = writeNewAttorneySummary(newAttorneys)
     firmChangeSummary = writeFirmChangeSummary(firmChanges)
@@ -308,14 +285,12 @@ def compare(dates):
     summaries = [newAttorneySummary, firmChangeSummary]
     summaries = list(filter(lambda item: item is not None, summaries))
     
-    #TODO Should a linkedIn post be made to report no changes?
     if not summaries:
         print("No recent changes to the register.")
-    else:
-        #TODO decouple linkedin API stuff from printing draft posts
-        for tweet in summaries:
-            print(tweet)
-        #linkedInPost(tweets)
+        return
+    
+    for summary in summaries:
+        print(summary)
 
 if __name__ == '__main__':
     cli()
