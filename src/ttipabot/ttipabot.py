@@ -259,7 +259,7 @@ def rankNames(date, num):
     # Sort names and reindex to show ranking
     df = df.sort_values(by='Name', ascending=False, key=lambda col: col.str.len())
     df.reset_index(inplace=True)
-    print(df['Name'].head(num))
+    print(f"The top {num} names by length are:\n{df['Name'].head(num)}")
 
 
 @cli.command()
@@ -277,6 +277,8 @@ def compare(dates):
     (csv1, csv2) = getSpecifiedCsvs(csvFilepaths, [date1, date2])
 
     (newAttorneys, firmChanges) = compareCsvs(csv1, csv2)
+
+    #TODO make default print just the head of a dataframe with labelled columns
     
     newAttorneySummary = writeNewAttorneySummary(newAttorneys)
     firmChangeSummary = writeFirmChangeSummary(firmChanges)
