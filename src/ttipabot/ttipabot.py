@@ -243,7 +243,7 @@ def getLatestDates(num):
 @cli.command()
 @click.option('--date', default=getLatestDates(num=1)[0], help='date to rank name lengths')
 @click.option('--num', default=10, help='number of names in top ranking')
-def rankNames(date, num):
+def ranknames(date, num):
 
     #print(dates)
     csvFilepaths = getCsvFilepaths(CSV_FOLDER)
