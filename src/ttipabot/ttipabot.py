@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pandas as pd
 
+import pygame
+
 CSV_FOLDER = Path.cwd() / "TTIPAB register saves"
 
 @click.group()
@@ -264,7 +266,8 @@ def ranknames(date, num):
 
 @cli.command()
 @click.option('--dates', nargs=2, default=getLatestDates(num=2), help='dates to compare')
-def compare(dates):
+@click.option('--chant', is_flag=True, show_default=True, default=False, help='Sardaukar chant if new attorneys')
+def compare(dates, chant):
 
     date1, date2 = dates
     # Ensure date1 is the earliest date, so later code can assume this
@@ -282,6 +285,7 @@ def compare(dates):
     
     newAttorneySummary = writeNewAttorneySummary(newAttorneys)
     firmChangeSummary = writeFirmChangeSummary(firmChanges)
+    
 
     # Compile the summaries and filter out None values
     summaries = [newAttorneySummary, firmChangeSummary]
@@ -293,6 +297,14 @@ def compare(dates):
     
     for summary in summaries:
         print(summary)
+
+    # Play a Sardaukar chant if there are any new attorneys
+    if chant and not newAttorneys.empty:
+        pygame.init()
+        sound = pygame.mixer.Sound('sardaukar-chant.mp3')
+        sound.play()
+        while pygame.mixer.get_busy(): pass
+
 
 if __name__ == '__main__':
     cli()
