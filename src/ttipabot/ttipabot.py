@@ -11,6 +11,7 @@ from pathlib import Path
 import pandas as pd
 
 import pygame
+import random
 
 CSV_FOLDER = Path.cwd() / "TTIPAB register saves"
 
@@ -91,11 +92,14 @@ def writeRawHTML(rawHTML):
     with open("registerDump.txt", 'w', encoding="utf-8") as f:
         f.write(rawHTML)
 
-@cli.command()
-def scrape():
+def scrapeRegister(_compare, _ranknames):
     results = getFullRegister()
     data = parseRegister(results)
     writeToCSV(data, CSV_FOLDER)
+
+    if _compare: compare(dates=getLatestDates(num=2), chant=True)
+
+    if _ranknames: ranknames(date=getLatestDates(num=1)[0], num=10)
 
 def getCsvFilepaths(folderPath):
     return list(folderPath.glob('*.csv'))
@@ -242,10 +246,7 @@ def getLatestDates(num):
 
     return dates
 
-@cli.command()
-@click.option('--date', default=getLatestDates(num=1)[0], help='date to rank name lengths')
-@click.option('--num', default=10, help='number of names in top ranking')
-def ranknames(date, num):
+def rankNames(date, num):
 
     #print(dates)
     csvFilepaths = getCsvFilepaths(CSV_FOLDER)
@@ -264,10 +265,7 @@ def ranknames(date, num):
     print(f"The top {num} names by length are:\n{df['Name'].head(num)}")
 
 
-@cli.command()
-@click.option('--dates', nargs=2, default=getLatestDates(num=2), help='dates to compare')
-@click.option('--chant', is_flag=True, show_default=True, default=False, help='Sardaukar chant if new attorneys')
-def compare(dates, chant):
+def compareData(dates, chant):
 
     date1, date2 = dates
     # Ensure date1 is the earliest date, so later code can assume this
@@ -293,18 +291,110 @@ def compare(dates, chant):
     
     if not summaries:
         print("No recent changes to the register.")
-        return
     
     for summary in summaries:
         print(summary)
 
-    # Play a Sardaukar chant if there are any new attorneys
-    if chant and not newAttorneys.empty:
-        pygame.init()
-        sound = pygame.mixer.Sound('sardaukar-chant.mp3')
-        sound.play()
-        while pygame.mixer.get_busy(): pass
+    # Play a Sardaukar chant if there are any new attorneys. Shorter one with a random quote if not.
+    if not chant: return 
+
+    # Get a list of all the new patent attorneys by leaving out those solely TM registered (will still capture blanks)
+    patentAttorneys = [newAttorney for newAttorney in newAttorneys.itertuples() if newAttorney._3 != 'Trade marks']
+
+    if not patentAttorneys:
+        # Select a random quote
+        with open('quotes.txt', 'r') as file:
+            lines = [line.rstrip() for line in file]
+            text = [random.choice(lines)]
+        sound_file = 'sardaukar-growl.mp3'
+    else:
+        text = [f"{patentAttorney.Name}." if patentAttorney.Firm_y == '' else f"{patentAttorney.Name} of {patentAttorney.Firm_y}." for patentAttorney in patentAttorneys]
+        sound_file = 'sardaukar-chant.mp3'
+    
+    performChant(sound_file, text)
+
+def performChant(sound_file, text):
+
+    pygame.init()
+    screen = pygame.display.set_mode(flags=pygame.FULLSCREEN)
+    pygame.mixer.music.load(sound_file)
+    # Hacky way to ensure enough chant loops to cover everyone - based on approx ratio of chant length to number of lines to fade
+    pygame.mixer.music.play(int(len(text) / 8) + 1)
+
+    for line in text:
+        fadeText(screen, line)
+    
+    while pygame.mixer.music.get_busy(): 
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit()
+
+        screen.fill(pygame.Color('black'))
+        pygame.display.flip()
+
+def fadeText(screen, line):
+
+    clock = pygame.time.Clock()
+    timer = 0
+    WAIT_TIME = 1500
+    FADEOUT_TIME = 6000
+    faded_in = False
+
+    font = pygame.font.Font('Futura Medium.otf', 50)
+    orig_surf = font.render(line, True, pygame.Color('white'))
+    orig_surf_rect = orig_surf.get_rect(center = (screen.get_rect().centerx, screen.get_rect().centery * 1.5))
+    txt_surf = orig_surf.copy()
+    # This surface is used to adjust the alpha of the txt_surf.
+    alpha_surf = pygame.Surface(txt_surf.get_size(), pygame.SRCALPHA)
+    alpha = 0  # The current alpha value of the surface.
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit()
+
+        if alpha < 255 and timer>= WAIT_TIME and not faded_in:
+            # Increase alpha each frame, but make sure it doesn't go above 255.
+            alpha = min(alpha+10, 255)
+            if alpha == 255: faded_in=True 
+        elif faded_in and timer>=FADEOUT_TIME and alpha > 0:
+            # Decrease alpha each frame, but make sure it doesn't go below 0.
+            alpha = max(alpha-10, 0)
+            if alpha == 0: return
+
+        txt_surf = orig_surf.copy()  # Don't modify the original text surf.
+        # Fill alpha_surf with this color to set its alpha value.
+        alpha_surf.fill((255, 255, 255, alpha))
+        # To make the text surface transparent, blit the transparent
+        # alpha_surf onto it with the BLEND_RGBA_MULT flag.
+        txt_surf.blit(alpha_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+        screen.fill(pygame.Color('black'))
+        screen.blit(txt_surf, orig_surf_rect)
+        pygame.display.flip()
+        timer += clock.tick(24)
 
 
-if __name__ == '__main__':
-    cli()
+# Thin wrappers for cli commands
+        
+@cli.command()
+@click.option('--compare', is_flag=True, show_default=True, default=False, help='Compare after scrape')
+@click.option('--ranknames', is_flag=True, show_default=True, default=False, help='Rank names after scrape')
+def scrape(compare, ranknames):
+    scrapeRegister(compare, ranknames)
+
+@cli.command()
+@click.option('--dates', nargs=2, default=getLatestDates(num=2), help='dates to compare, in format: \'YY-MM-DD\' \'YY-MM-DD\'')
+@click.option('--chant', is_flag=True, show_default=True, default=False, help='Sardaukar chant for any new attorneys. Or a quote.')
+def compare(dates, chant):
+    compareData(dates, chant)
+
+@cli.command()
+@click.option('--date', default=getLatestDates(num=1)[0], help='date to rank name lengths')
+@click.option('--num', default=10, help='number of names in top ranking')
+def ranknames(date, num):
+    rankNames(date, num)
+
+# if __name__ == '__main__':
+#     cli()
