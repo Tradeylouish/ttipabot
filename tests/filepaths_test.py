@@ -52,9 +52,10 @@ def test_specified_csvs(tmp_path):
     for path in paths:
         path.touch()
 
-    assert ttipabot.getSpecifiedCsvs(paths, "2023-03-20", "2023-06-25") == (path1, path3)
+    # Specifying dates that both have a file
+    assert ttipabot.getSpecifiedCsvs(paths, ["2023-03-20", "2023-06-25"]) == [path1, path3]
     # Trying to specify a date that doesn't have a file
-    assert ttipabot.getSpecifiedCsvs(paths, "2023-03-20", "2099-06-25") == (path1, None)
+    assert ttipabot.getSpecifiedCsvs(paths, ["2023-03-20", "2099-06-25"]) == [path1, None]
     # Malformed strings - should raise exception
     with pytest.raises(Exception):
         ttipabot.getSpecifiedCsvs(paths, "garbage", "garbage")
