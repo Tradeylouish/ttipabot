@@ -1,24 +1,18 @@
 import requests
-
 import click
-
 from bs4 import BeautifulSoup, Tag
 import csv
 import datetime
-
 from pathlib import Path
-
 import pandas as pd
-
 import pygame
 import random
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename='ttipabot.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 CSV_FOLDER = Path.cwd() / "TTIPAB register saves"
-
-@click.group()
-def cli():
-    pass
-
 
 def TTIPABrequest(count):
     # Public API endpoint as determined by Inspect Element > Network > Requests on Google Chrome
@@ -29,19 +23,25 @@ def TTIPABrequest(count):
     return requests.get(url, stream=True)
 
 def getFullRegister():
-    #Do an intial ping of the register to determine the total number of results to be requested
-    initialResponse = TTIPABrequest(1)
-    #Convert JSON response to dict and extract count
-    resultsCount = initialResponse.json().get("Count")
+    
+    try:
+        #Do an intial ping of the register to determine the total number of results to be requested
+        initialResponse = TTIPABrequest(1)
+        #Convert JSON response to dict and extract count
+        resultsCount = initialResponse.json().get("Count")
+        #Request the full contents of the register
+        rawHTML = TTIPABrequest(resultsCount).text
 
-    #Request the full contents of the register
-    rawHTML = TTIPABrequest(resultsCount).text
+        logger.debug(f"Scraped {resultsCount} results from the register.")
+
+    except Exception as ex:
+        logger.error("Failed to scrape register, could be a server-side problem.", exc_info= ex)
+        exit()
+
     # Get rid of control characters
     rawHTML = rawHTML.replace("\\r", "")
     rawHTML = rawHTML.replace("\\n", "")
     rawHTML = rawHTML.replace("\\", "")
-
-    #writeRawHTML(rawHTML)
 
     # Parse and extract all the data
     soup = BeautifulSoup(rawHTML, 'lxml')
@@ -79,12 +79,9 @@ def writeToCSV(data, folderpath):
 
     # open the file in the write mode
     with spreadsheet_name.open('w', encoding="utf-8", newline='') as f:
-        
         writer = csv.writer(f)
-
         # write header to the csv file
         writer.writerow(header)
-
         # write data to the csv file
         writer.writerows(data)
 
@@ -92,14 +89,10 @@ def writeRawHTML(rawHTML):
     with open("registerDump.txt", 'w', encoding="utf-8") as f:
         f.write(rawHTML)
 
-def scrapeRegister(_compare, _ranknames):
+def scrapeRegister():
     results = getFullRegister()
     data = parseRegister(results)
     writeToCSV(data, CSV_FOLDER)
-
-    if _compare: compare(dates=getLatestDates(num=2), chant=True)
-
-    if _ranknames: ranknames(date=getLatestDates(num=1)[0], num=10)
 
 def getCsvFilepaths(folderPath):
     return list(folderPath.glob('*.csv'))
@@ -148,7 +141,6 @@ def getDiffs(df_date1, df_date2):
     df_left = df_diff.query("Exist == 'left_only'")
     df_right = df_diff.query("Exist == 'right_only'")
 
-
     # TODO - name change detect logic?
     df_left = df_left.sort_values(by = 'Name')
     df_right = df_right.sort_values(by = 'Name')
@@ -174,65 +166,14 @@ def compareCsvs(date1_path, date2_path):
     # Prep the needed data, replace missing values with empty strings to assist comparisons later on
     df_newAttorneys = df_newAttorneys[['Name', 'Firm_y', 'Registered as_y']].fillna('')
     df_changedFirms = df_changedFirms[['Name', 'Firm_x', 'Firm_y']].fillna('')
-    
+
+    #Reformat for readability
+    df_newAttorneys = df_newAttorneys.rename(columns={"Firm_y": "Firm", "Registered as_y": "Registered as"}).reset_index(drop=True)
+    df_changedFirms = df_changedFirms.rename(columns={"Firm_x": "Old firm", "Firm_y": "New firm"}).reset_index(drop=True)
+    df_newAttorneys.index += 1
+    df_changedFirms.index += 1
+
     return df_newAttorneys, df_changedFirms
-
-def fixGrammar(string):
-    # Replace trailing comma with full stop
-    string = string[:-2] + "."
-    
-    lastCommaIndex = string.rfind(",")
-    # If there's no comma
-    if lastCommaIndex == -1:
-        return string
-    # Insert 'and'
-    return string[ : lastCommaIndex + 2] + "and " + string[lastCommaIndex + 2 : ]
-
-def writeNewAttorneySummary(newAttorneys):
-    # Takes in a dataframe
-
-    if newAttorneys.empty:
-        return None
-    
-    summary = "Congratulations to the following newly registered IP attorneys: "
-
-    #TODO: Possibly say their registration type
-
-    for newAttorney in newAttorneys.itertuples():
-        summary += newAttorney.Name 
-        if newAttorney.Firm_y != '':
-            summary += f" of {newAttorney.Firm_y}"
-
-        summary += ", "
-        
-    summary = fixGrammar(summary)
-
-    return summary
-
-def writeFirmChangeSummary(firmChanges):
-    # Takes in a dataframe
-
-    if firmChanges.empty:
-        return None
-
-    summary = "The following IP attorneys have recently changed firm: "
-
-    #TODO: Maybe tidy up a little
-
-    for firmChange in firmChanges.itertuples():
-        noFirmSubstitute = "independent"
-
-        summary += f"{firmChange.Name} from " 
-        summary += f"{firmChange.Firm_x}" if firmChange.Firm_x != '' else noFirmSubstitute
-
-        summary += " to "
-        summary += f"{firmChange.Firm_y}" if firmChange.Firm_y != '' else noFirmSubstitute
-
-        summary += ", "
-    
-    summary = fixGrammar(summary)
-
-    return summary
 
 def getLatestDates(num):
 
@@ -260,9 +201,11 @@ def rankNames(date, num):
     df.fillna('')
 
     # Sort names and reindex to show ranking
-    df = df.sort_values(by='Name', ascending=False, key=lambda col: col.str.len())
+    df['Length'] = df['Name'].apply(lambda col: len(col))
+    df = df.sort_values(by='Length', ascending=False)
     df.reset_index(inplace=True)
-    print(f"The top {num} names by length are:\n{df['Name'].head(num)}")
+    df.index += 1
+    print(f"\nThe top {num} names by length are:\n{df[['Name', 'Length']].head(num).to_markdown()}")
 
 
 def compareData(dates, chant):
@@ -277,28 +220,23 @@ def compareData(dates, chant):
 
     (csv1, csv2) = getSpecifiedCsvs(csvFilepaths, [date1, date2])
 
-    (newAttorneys, firmChanges) = compareCsvs(csv1, csv2)
+    logger.debug(f"Comparing dates {date1} and {date2}")
 
-    #TODO make default print just the head of a dataframe with labelled columns
-    
-    newAttorneySummary = writeNewAttorneySummary(newAttorneys)
-    firmChangeSummary = writeFirmChangeSummary(firmChanges)
-    
+    try:
+        (newAttorneys, firmChanges) = compareCsvs(csv1, csv2)
 
-    # Compile the summaries and filter out None values
-    summaries = [newAttorneySummary, firmChangeSummary]
-    summaries = list(filter(lambda item: item is not None, summaries))
-    
-    if not summaries:
-        print("No recent changes to the register.")
-    
-    for summary in summaries:
-        print(summary)
+        if not newAttorneys.empty: print(f"\nCongratulations to the following newly registered IP attorneys:\n{newAttorneys.to_markdown()}\n")
+        if not firmChanges.empty: print(f"The following attorneys have recently changed firm:\n{firmChanges.to_markdown()}\n")
 
-    # Play a Sardaukar chant if there are any new attorneys. Shorter one with a random quote if not.
+    except Exception as ex:
+        logger.error(f"Error analysing data, possibly anomaly in register.", exc_info= ex)
+        # Create empty data frame so that the random chant can proceed
+        newAttorneys = pd.DataFrame([])
+
+    # Play a Sardaukar chant if there are any new attorneys. Otherwise shorter chant with a random quote.
     if not chant: return 
 
-    # Get a list of all the new patent attorneys by leaving out those solely TM registered (will still capture blanks)
+    # Get a list of all the new patent attorneys by eliminating solely TM registered (will still capture blanks, in case data missing)
     patentAttorneys = [newAttorney for newAttorney in newAttorneys.itertuples() if newAttorney._3 != 'Trade marks']
 
     if not patentAttorneys:
@@ -307,9 +245,11 @@ def compareData(dates, chant):
             lines = [line.rstrip() for line in file]
             text = [random.choice(lines)]
         sound_file = 'sardaukar-growl.mp3'
+        logger.debug(f"No new patent attorneys found, random quote is: \"{text[0]}\"")
     else:
         text = [f"{patentAttorney.Name}." if patentAttorney.Firm_y == '' else f"{patentAttorney.Name} of {patentAttorney.Firm_y}." for patentAttorney in patentAttorneys]
         sound_file = 'sardaukar-chant.mp3'
+        logger.debug(f"Found {len(text)} new patent attorneys.")
     
     performChant(sound_file, text)
 
@@ -319,10 +259,16 @@ def performChant(sound_file, text):
     screen = pygame.display.set_mode(flags=pygame.FULLSCREEN)
     pygame.mixer.music.load(sound_file)
     # Hacky way to ensure enough chant loops to cover everyone - based on approx ratio of chant length to number of lines to fade
-    pygame.mixer.music.play(int(len(text) / 8) + 1)
+    playcount = int(len(text) / 8) + 1
+    try:
+        pygame.mixer.music.play(playcount)
+        logger.debug(f"Playing {sound_file} {playcount} time(s).")
+    except Exception as ex:
+        logger.error(f"Error attempting to play {sound_file}, check filepaths.", exc_info= ex)
 
     for line in text:
         fadeText(screen, line)
+    logger.debug(f"Finished showing all text.")
     
     while pygame.mixer.music.get_busy(): 
 
@@ -337,6 +283,7 @@ def fadeText(screen, line):
 
     clock = pygame.time.Clock()
     timer = 0
+    # Constants for timing adjustment, based on Dune movie intro
     WAIT_TIME = 1500
     FADEOUT_TIME = 6000
     faded_in = False
@@ -377,12 +324,20 @@ def fadeText(screen, line):
 
 
 # Thin wrappers for cli commands
+@click.group()
+def cli():
+    pass
         
 @cli.command()
-@click.option('--compare', is_flag=True, show_default=True, default=False, help='Compare after scrape')
-@click.option('--ranknames', is_flag=True, show_default=True, default=False, help='Rank names after scrape')
-def scrape(compare, ranknames):
-    scrapeRegister(compare, ranknames)
+@click.option('--compare', is_flag=True, show_default=True, default=False, help='Run compare command after scrape')
+@click.option('--chant', is_flag=True, show_default=True, default=False, help='Run compare command with the chant flag')
+@click.option('--ranknames', is_flag=True, show_default=True, default=False, help='Run ranknames command after scrape')
+def scrape(compare, chant, ranknames):
+    #scrapeRegister()
+    # Optionally call the other commands using the scrape just performed
+    if chant: compare = True
+    if compare: compareData(getLatestDates(num=2), chant)
+    if ranknames: rankNames(date=getLatestDates(num=1)[0], num=10)
 
 @cli.command()
 @click.option('--dates', nargs=2, default=getLatestDates(num=2), help='dates to compare, in format: \'YY-MM-DD\' \'YY-MM-DD\'')
@@ -396,5 +351,5 @@ def compare(dates, chant):
 def ranknames(date, num):
     rankNames(date, num)
 
-# if __name__ == '__main__':
-#     cli()
+if __name__ == '__main__':
+    cli()
