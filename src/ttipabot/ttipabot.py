@@ -1,20 +1,22 @@
-import requests
-import click
-from bs4 import BeautifulSoup, Tag
-import csv
-import datetime
-from pathlib import Path
-import pandas as pd
-import pygame
-import random
 import logging
+import datetime
+import csv
+from pathlib import Path
+import random
+
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup, Tag
+import click
+import pygame
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename='ttipabot.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 CSV_FOLDER = Path.cwd() / "TTIPAB register saves"
 
-def TTIPABrequest(count):
+def ttipab_request(count):
     # Public API endpoint as determined by Inspect Element > Network > Requests on Google Chrome
     urlBase = "https://www.ttipattorney.gov.au//sxa/search/results/"
     urlOptions1 = "?s={21522AF6-8499-4C63-8CFA-02E2B97737BE}&itemid={8B94FE47-304A-4629-AD46-DD208EEF71AA}&sig=als&e=0&p="
@@ -22,15 +24,15 @@ def TTIPABrequest(count):
     url =  f"{urlBase}{urlOptions1}{count}{urlOptions2}"
     return requests.get(url, stream=True)
 
-def getFullRegister():
+def get_full_register():
     
     try:
         #Do an intial ping of the register to determine the total number of results to be requested
-        initialResponse = TTIPABrequest(1)
+        initialResponse = ttipab_request(1)
         #Convert JSON response to dict and extract count
         resultsCount = initialResponse.json().get("Count")
         #Request the full contents of the register
-        rawHTML = TTIPABrequest(resultsCount).text
+        rawHTML = ttipab_request(resultsCount).text
 
         logger.debug(f"Scraped {resultsCount} results from the register.")
 
@@ -50,7 +52,7 @@ def getFullRegister():
 
     return attorneys
 
-def getContactData(result, searchString):
+def get_contact_data(result, searchString):
     tag = result.find("span", string=searchString)
     if tag is None:
         return ""
@@ -59,19 +61,19 @@ def getContactData(result, searchString):
     #Could be two strings for dual registrations, so comma join
     return ", ".join(tag.find_next_sibling().stripped_strings) 
 
-def getAttorneyData(attorney):
+def get_attorney_data(attorney):
     #Takes a soup representing an attorney
     fields = [" Attorney ", " Phone ", " Email ", " Firm ", " Address ", " Registered as"]
-    return [getContactData(attorney, field) for field in fields]
+    return [get_contact_data(attorney, field) for field in fields]
 
-def parseRegister(attorneys):
+def parse_register(attorneys):
     #Takes a list of soup objects representing attorneys
-    data = [getAttorneyData(attorney) for attorney in attorneys 
-            if getContactData(attorney, " Attorney ") != ""]
+    data = [get_attorney_data(attorney) for attorney in attorneys 
+            if get_contact_data(attorney, " Attorney ") != ""]
 
     return data
 
-def writeToCSV(data, folderpath):
+def write_to_csv(data, folderpath):
     #Print the register contents to a CSV file
     spreadsheet_name = folderpath / (str(datetime.date.today()) + '.csv')
 
@@ -85,32 +87,32 @@ def writeToCSV(data, folderpath):
         # write data to the csv file
         writer.writerows(data)
 
-def writeRawHTML(rawHTML):
+def write_raw_html(rawHTML):
     with open("registerDump.txt", 'w', encoding="utf-8") as f:
         f.write(rawHTML)
 
-def scrapeRegister():
-    results = getFullRegister()
-    data = parseRegister(results)
-    writeToCSV(data, CSV_FOLDER)
+def scrape_register():
+    results = get_full_register()
+    data = parse_register(results)
+    write_to_csv(data, CSV_FOLDER)
 
-def getCsvFilepaths(folderPath):
+def get_csv_filepaths(folderPath):
     return list(folderPath.glob('*.csv'))
 
-def getLatestCsvs(csvFilepaths):
+def get_latest_csvs(csvFilepaths):
     # Filename format means default sort will time-order
     csvFilepaths.sort()
 
     # Return the last two entries
     return csvFilepaths[-2], csvFilepaths[-1]
 
-def getSpecifiedCsvs(csvFilepaths, dates):
+def get_specified_csvs(csvFilepaths, dates):
     # Look for a filepath that contain the date string
     datePaths = [next((path for path in csvFilepaths if date in str(path)), None) for date in dates]
 
     return datePaths
 
-def createDataframes(date1_path, date2_path):
+def create_dataframes(date1_path, date2_path):
 
     #Read the CSV data into dataframes
     df_date1 = pd.read_csv(date1_path, dtype='string')
@@ -119,7 +121,7 @@ def createDataframes(date1_path, date2_path):
     # Replace missing values with empty strings for comparison purposes
     df_date1.fillna('')
     df_date2.fillna('')
-    #
+
     #diff = df_date2.compare(df_date1, align_axis=1)
 
     # Reset the index
@@ -127,7 +129,7 @@ def createDataframes(date1_path, date2_path):
 
     return df_date1, df_date2
 
-def getDiffs(df_date1, df_date2):
+def get_diffs(df_date1, df_date2):
 
     # Merge the dataframes so that differences can be compared
     df_diff = pd.merge(df_date1, df_date2, how="outer", indicator="Exist")
@@ -147,10 +149,10 @@ def getDiffs(df_date1, df_date2):
 
     return df_left, df_right
 
-def compareCsvs(date1_path, date2_path):
+def compare_csvs(date1_path, date2_path):
     # Data comparison steps
-    (df_date1, df_date2) = createDataframes(date1_path, date2_path)
-    (df_left, df_right) = getDiffs(df_date1, df_date2)
+    (df_date1, df_date2) = create_dataframes(date1_path, date2_path)
+    (df_left, df_right) = get_diffs(df_date1, df_date2)
     
     # Find which names are new
     df_names = pd.merge(df_left, df_right, on='Name', how="outer", indicator="NameExist")
@@ -175,9 +177,9 @@ def compareCsvs(date1_path, date2_path):
 
     return df_newAttorneys, df_changedFirms
 
-def getLatestDates(num):
+def get_latest_dates(num):
 
-    csvFilepaths = getCsvFilepaths(CSV_FOLDER)
+    csvFilepaths = get_csv_filepaths(CSV_FOLDER)
 
     # Filename format means default sort will time-order
     csvFilepaths.sort()
@@ -187,11 +189,11 @@ def getLatestDates(num):
 
     return dates
 
-def rankNames(date, num):
+def rank_names(date, num):
 
     #print(dates)
-    csvFilepaths = getCsvFilepaths(CSV_FOLDER)
-    csv = getSpecifiedCsvs(csvFilepaths, [date])[0]
+    csvFilepaths = get_csv_filepaths(CSV_FOLDER)
+    csv = get_specified_csvs(csvFilepaths, [date])[0]
 
     #TODO vectorise existing code above
 
@@ -208,7 +210,7 @@ def rankNames(date, num):
     print(f"\nThe top {num} names by length are:\n{df[['Name', 'Length']].head(num).to_markdown()}")
 
 
-def compareData(dates, chant):
+def compare_data(dates, chant):
 
     date1, date2 = dates
     # Ensure date1 is the earliest date, so later code can assume this
@@ -216,17 +218,19 @@ def compareData(dates, chant):
     if datetime.datetime.strptime(date1, FORMAT) > datetime.datetime.strptime(date2, FORMAT):
         date1, date2 = date2, date1
     
-    csvFilepaths = getCsvFilepaths(CSV_FOLDER)
+    csvFilepaths = get_csv_filepaths(CSV_FOLDER)
 
-    (csv1, csv2) = getSpecifiedCsvs(csvFilepaths, [date1, date2])
+    (csv1, csv2) = get_specified_csvs(csvFilepaths, [date1, date2])
 
     logger.debug(f"Comparing dates {date1} and {date2}")
 
     try:
-        (newAttorneys, firmChanges) = compareCsvs(csv1, csv2)
+        (newAttorneys, firmChanges) = compare_csvs(csv1, csv2)
 
-        if not newAttorneys.empty: print(f"\nCongratulations to the following newly registered IP attorneys:\n{newAttorneys.to_markdown()}\n")
-        if not firmChanges.empty: print(f"The following attorneys have recently changed firm:\n{firmChanges.to_markdown()}\n")
+        if not newAttorneys.empty: 
+            print(f"\nCongratulations to the following newly registered IP attorneys:\n{newAttorneys.to_markdown()}\n")
+        if not firmChanges.empty: 
+            print(f"The following attorneys have recently changed firm:\n{firmChanges.to_markdown()}\n")
 
     except Exception as ex:
         logger.error(f"Error analysing data, possibly anomaly in register.", exc_info= ex)
@@ -251,9 +255,9 @@ def compareData(dates, chant):
         sound_file = 'sardaukar-chant.mp3'
         logger.debug(f"Found {len(text)} new patent attorneys.")
     
-    performChant(sound_file, text)
+    perform_chant(sound_file, text)
 
-def performChant(sound_file, text):
+def perform_chant(sound_file, text):
 
     pygame.init()
     screen = pygame.display.set_mode(flags=pygame.FULLSCREEN)
@@ -267,7 +271,7 @@ def performChant(sound_file, text):
         logger.error(f"Error attempting to play {sound_file}, check filepaths.", exc_info= ex)
 
     for line in text:
-        fadeText(screen, line)
+        fade_text(screen, line)
     logger.debug(f"Finished showing all text.")
     
     while pygame.mixer.music.get_busy(): 
@@ -279,7 +283,7 @@ def performChant(sound_file, text):
         screen.fill(pygame.Color('black'))
         pygame.display.flip()
 
-def fadeText(screen, line):
+def fade_text(screen, line):
 
     clock = pygame.time.Clock()
     timer = 0
@@ -333,23 +337,23 @@ def cli():
 @click.option('--chant', is_flag=True, show_default=True, default=False, help='Run compare command with the chant flag')
 @click.option('--ranknames', is_flag=True, show_default=True, default=False, help='Run ranknames command after scrape')
 def scrape(compare, chant, ranknames):
-    #scrapeRegister()
+    #scrape_register()
     # Optionally call the other commands using the scrape just performed
     if chant: compare = True
-    if compare: compareData(getLatestDates(num=2), chant)
-    if ranknames: rankNames(date=getLatestDates(num=1)[0], num=10)
+    if compare: compare_data(get_latest_dates(num=2), chant)
+    if ranknames: rank_names(date=get_latest_dates(num=1)[0], num=10)
 
 @cli.command()
-@click.option('--dates', nargs=2, default=getLatestDates(num=2), help='dates to compare, in format: \'YY-MM-DD\' \'YY-MM-DD\'')
+@click.option('--dates', nargs=2, default=get_latest_dates(num=2), help='dates to compare, in format: \'YY-MM-DD\' \'YY-MM-DD\'')
 @click.option('--chant', is_flag=True, show_default=True, default=False, help='Sardaukar chant for any new attorneys. Or a quote.')
 def compare(dates, chant):
-    compareData(dates, chant)
+    compare_data(dates, chant)
 
 @cli.command()
-@click.option('--date', default=getLatestDates(num=1)[0], help='date to rank name lengths')
+@click.option('--date', default=get_latest_dates(num=1)[0], help='date to rank name lengths')
 @click.option('--num', default=10, help='number of names in top ranking')
 def ranknames(date, num):
-    rankNames(date, num)
+    rank_names(date, num)
 
 if __name__ == '__main__':
     cli()
