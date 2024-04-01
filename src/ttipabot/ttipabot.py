@@ -338,7 +338,7 @@ def cli():
 @click.option('--chant', is_flag=True, show_default=True, default=False, help='Run compare command with the chant flag')
 @click.option('--ranknames', is_flag=True, show_default=True, default=False, help='Run ranknames command after scrape')
 def scrape(compare, chant, ranknames):
-    #scrape_register()
+    scrape_register()
     # Optionally call the other commands using the scrape just performed
     if chant: compare = True
     if compare: compare_data(get_latest_dates(num=2), chant)
