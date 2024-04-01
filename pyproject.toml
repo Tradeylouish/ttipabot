@@ -2,7 +2,7 @@
 name = "ttipabot"
 version = "1.0.0"
 description = "TTIPABot CLI"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dependencies = [
     "click>=8.1",
     "requests",
