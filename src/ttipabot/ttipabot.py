@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(filename='ttipabot.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 CSV_FOLDER = Path.cwd() / "TTIPAB register saves"
+MEDIA_FOLDER = Path.cwd() / "media"
 
 def ttipab_request(count):
     # Public API endpoint as determined by Inspect Element > Network > Requests on Google Chrome
@@ -245,14 +246,14 @@ def compare_data(dates, chant):
 
     if not patentAttorneys:
         # Select a random quote
-        with open('quotes.txt', 'r') as file:
+        with open(MEDIA_FOLDER / 'quotes.txt', 'r') as file:
             lines = [line.rstrip() for line in file]
             text = [random.choice(lines)]
-        sound_file = 'sardaukar-growl.mp3'
+        sound_file = MEDIA_FOLDER / 'sardaukar-growl.mp3'
         logger.debug(f"No new patent attorneys found, random quote is: \"{text[0]}\"")
     else:
         text = [f"{patentAttorney.Name}." if patentAttorney.Firm == '' else f"{patentAttorney.Name} of {patentAttorney.Firm}." for patentAttorney in patentAttorneys]
-        sound_file = 'sardaukar-chant.mp3'
+        sound_file = MEDIA_FOLDER / 'sardaukar-chant.mp3'
         logger.debug(f"Found {len(text)} new patent attorneys.")
     
     perform_chant(sound_file, text)
@@ -292,7 +293,7 @@ def fade_text(screen, line):
     FADEOUT_TIME = 6000
     faded_in = False
 
-    font = pygame.font.Font('Futura Medium.otf', 50)
+    font = pygame.font.Font(MEDIA_FOLDER / 'Futura Medium.otf', 50)
     orig_surf = font.render(line, True, pygame.Color('white'))
     orig_surf_rect = orig_surf.get_rect(center = (screen.get_rect().centerx, screen.get_rect().centery * 1.5))
     txt_surf = orig_surf.copy()

@@ -11,13 +11,14 @@ def test_get_csv_filepaths(tmp_path):
     for path in paths:
         path.touch()
 
-    assert ttipabot.getCsvFilepaths(d) == paths
+    # Order doesn't matter
+    assert sorted(ttipabot.get_csv_filepaths(d)) == sorted(paths)
 
     # When a non-csv file is in folder
     txtPath = d / 'garbage.txt'
     txtPath.write_text('')
 
-    assert ttipabot.getCsvFilepaths(d) == paths
+    assert sorted(ttipabot.get_csv_filepaths(d)) == sorted(paths)
 
 def test_latest_csvs(tmp_path):
 
@@ -33,11 +34,11 @@ def test_latest_csvs(tmp_path):
     for path in paths:
         path.touch()
 
-    assert ttipabot.getLatestCsvs(paths) == (path2, path3)
+    assert ttipabot.get_latest_csvs(paths) == (path2, path3)
 
     # When the csvs aren't time-ordered
     paths.reverse()
-    assert ttipabot.getLatestCsvs(paths) == (path2, path3)
+    assert ttipabot.get_latest_csvs(paths) == (path2, path3)
 
 def test_specified_csvs(tmp_path):
     d = tmp_path / "saves"
@@ -53,9 +54,9 @@ def test_specified_csvs(tmp_path):
         path.touch()
 
     # Specifying dates that both have a file
-    assert ttipabot.getSpecifiedCsvs(paths, ["2023-03-20", "2023-06-25"]) == [path1, path3]
+    assert ttipabot.get_specified_csvs(paths, ["2023-03-20", "2023-06-25"]) == [path1, path3]
     # Trying to specify a date that doesn't have a file
-    assert ttipabot.getSpecifiedCsvs(paths, ["2023-03-20", "2099-06-25"]) == [path1, None]
+    assert ttipabot.get_specified_csvs(paths, ["2023-03-20", "2099-06-25"]) == [path1, None]
     # Malformed strings - should raise exception
     with pytest.raises(Exception):
-        ttipabot.getSpecifiedCsvs(paths, "garbage", "garbage")
+        ttipabot.get_specified_csvs(paths, "garbage", "garbage")
