@@ -163,13 +163,13 @@ def compare_csvs(date1_path, date2_path):
 
     df_changedFirms = df_changedDetails.query("Firm_x != Firm_y")
 
-    #TODO: Consider doing a comparison of registrations and capturing those going from single to dual registered
+    # TODO: Consider doing a comparison of registrations and capturing those going from single to dual registered
 
     # Prep the needed data, replace missing values with empty strings to assist comparisons later on
     df_newAttorneys = df_newAttorneys[['Name', 'Firm_y', 'Registered as_y']].fillna('')
     df_changedFirms = df_changedFirms[['Name', 'Firm_x', 'Firm_y']].fillna('')
 
-    #Reformat for readability
+    # Reformat for readability
     df_newAttorneys = df_newAttorneys.rename(columns={"Firm_y": "Firm", "Registered as_y": "Registered as"}).reset_index(drop=True)
     df_changedFirms = df_changedFirms.rename(columns={"Firm_x": "Old firm", "Firm_y": "New firm"}).reset_index(drop=True)
     df_newAttorneys.index += 1
@@ -195,7 +195,7 @@ def rank_names(date, num):
     csvFilepaths = get_csv_filepaths(CSV_FOLDER)
     csv = get_specified_csvs(csvFilepaths, [date])[0]
 
-    #TODO vectorise existing code above
+    # TODO vectorise existing code above
 
     df = pd.read_csv(csv, dtype='string')
 
@@ -251,7 +251,7 @@ def compare_data(dates, chant):
         sound_file = 'sardaukar-growl.mp3'
         logger.debug(f"No new patent attorneys found, random quote is: \"{text[0]}\"")
     else:
-        text = [f"{patentAttorney.Name}." if patentAttorney.Firm_y == '' else f"{patentAttorney.Name} of {patentAttorney.Firm_y}." for patentAttorney in patentAttorneys]
+        text = [f"{patentAttorney.Name}." if patentAttorney.Firm == '' else f"{patentAttorney.Name} of {patentAttorney.Firm}." for patentAttorney in patentAttorneys]
         sound_file = 'sardaukar-chant.mp3'
         logger.debug(f"Found {len(text)} new patent attorneys.")
     
