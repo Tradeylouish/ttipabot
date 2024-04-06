@@ -1,6 +1,6 @@
 import pytest
 from bs4 import BeautifulSoup, Tag
-import ttipabot
+from ttipabot import scraper
 from pathlib import Path
 
 EXAMPLES_FOLDER = Path.cwd() / "tests/Examples"
@@ -51,33 +51,33 @@ def examples() -> Examples:
 
 def test_name_parse(examples: Examples):
     for attorney in examples.exampleAttorneys:
-        assert ttipabot.get_contact_data(attorney.rawHTML, " Attorney ") == attorney.name, f"Attorney {attorney.index} should be {attorney.name}"
+        assert scraper.get_contact_data(attorney.rawHTML, " Attorney ") == attorney.name, f"Attorney {attorney.index} should be {attorney.name}"
 
 def test_phone_parse(examples: Examples):
     for attorney in examples.exampleAttorneys:
-        assert ttipabot.get_contact_data(attorney.rawHTML, " Phone ") == attorney.phone, f"Attorney {attorney.index} should be {attorney.phone}"
+        assert scraper.get_contact_data(attorney.rawHTML, " Phone ") == attorney.phone, f"Attorney {attorney.index} should be {attorney.phone}"
 
 def test_email_parse(examples: Examples):
     for attorney in examples.exampleAttorneys:
-        assert ttipabot.get_contact_data(attorney.rawHTML, " Email ") == attorney.email, f"Attorney {attorney.index} should be {attorney.email}"
+        assert scraper.get_contact_data(attorney.rawHTML, " Email ") == attorney.email, f"Attorney {attorney.index} should be {attorney.email}"
 
 def test_firm_parse(examples: Examples):
     for attorney in examples.exampleAttorneys:
-        assert ttipabot.get_contact_data(attorney.rawHTML, " Firm ") == attorney.firm, f"Attorney {attorney.index} should be {attorney.firm}"
+        assert scraper.get_contact_data(attorney.rawHTML, " Firm ") == attorney.firm, f"Attorney {attorney.index} should be {attorney.firm}"
 
 def test_address_parse(examples: Examples):
     for attorney in examples.exampleAttorneys:
-        assert ttipabot.get_contact_data(attorney.rawHTML, " Address ") == attorney.address, f"Attorney {attorney.index} should be {attorney.address}"
+        assert scraper.get_contact_data(attorney.rawHTML, " Address ") == attorney.address, f"Attorney {attorney.index} should be {attorney.address}"
 
 def test_registrations_parse(examples: Examples):
     for attorney in examples.exampleAttorneys:
-        assert ttipabot.get_contact_data(attorney.rawHTML, " Registered as") == attorney.registrations, f"Attorney {attorney.index} should be {attorney.registrations}"
+        assert scraper.get_contact_data(attorney.rawHTML, " Registered as") == attorney.registrations, f"Attorney {attorney.index} should be {attorney.registrations}"
 
 def test_all_data_parse(examples: Examples):
     for attorney in examples.exampleAttorneys:
-        assert ttipabot.get_attorney_data(attorney.rawHTML) == attorney.allData
+        assert scraper.get_attorney_data(attorney.rawHTML) == attorney.allData
 
 def test_multiple_attorneys_data_parse(examples: Examples):
     data = [examples.exampleAttorneys[1].allData, examples.exampleAttorneys[2].allData]
     html = [attorney.rawHTML for attorney in examples.exampleAttorneys]
-    assert ttipabot.parse_register(html) == data
+    assert scraper.parse_register(html) == data

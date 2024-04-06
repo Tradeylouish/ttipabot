@@ -1,4 +1,4 @@
-import ttipabot.ttipabot as tt
+from ttipabot import app as tt
 import click
 
 # Thin wrappers for cli commands
