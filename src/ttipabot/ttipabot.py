@@ -108,9 +108,22 @@ def get_latest_csvs(csvFilepaths, num):
     latest_csv_filepaths = [csvFilepaths[-i] for i in range(1, num+1)]
     return latest_csv_filepaths
 
-def get_specified_csvs(csvFilepaths, dates):
-    # Look for a filepath that contains the date string
-    datePaths = [next((path for path in csvFilepaths if date in str(path)), None) for date in dates]
+def validate_date(date):
+    """Raises an error if date is not in ISO format."""
+    try:
+        datetime.date.fromisoformat(date)
+    except ValueError:
+        raise ValueError("Incorrect date format, should be YYYY-MM-DD")
+
+def select_filepaths_for_dates(filepaths, dates):
+    """Returns a list of paths to files with names matching input dates."""
+    datePaths=[]
+    for date in dates:
+        validate_date(date)
+        datePath = next((path for path in filepaths if date in str(path)), None)
+        if datePath == None: 
+            raise ValueError(f"No file exists for {date}")
+        datePaths.append(datePath)
 
     return datePaths
 

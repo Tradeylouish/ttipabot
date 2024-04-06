@@ -5,85 +5,79 @@ from pathlib import Path
 
 EXAMPLES_FOLDER = Path.cwd() / "tests/Examples"
 
-# Helper function for setting up example attorney HTML to test on
-def read_example_attorney(filename):
-    rawHTML = ""
+class ExampleAttorney:
+    def __init__(self, rawHTML, allData, index):
+        self.rawHTML = rawHTML
+        self.allData = allData
+        self.name = allData[0]
+        self.phone = allData[1]
+        self.email = allData[2]
+        self.firm = allData[3]
+        self.address = allData[4]
+        self.registrations =allData[5]
+        self.index=index
 
-    with open(EXAMPLES_FOLDER / filename, 'r', encoding="utf-8") as f:
-        rawHTML = f.read()
-    soup = BeautifulSoup(rawHTML, 'lxml')
-    return soup.find(class_="list-item attorney")
+class Examples:
+    def __init__(self):
+        exampleHTML = ["blankAttorneyExample.txt","attorneyHTMLExample.txt","attorneyHTMLExample2.txt"]
+        exampleData = [["","","","","",""],
+                       ["Louis Francisco Yates Habberfield-Short", 
+                        "+64 9 353 5423", 
+                        "louis.habberfield-short@ajpark.com", 
+                        "", 
+                        "Level 14, Aon Centre, 29 Customs Street West, Auckland 1010, New Zealand", 
+                        "Patents"], 
+                        ["Donald Iain Angus", 
+                        "08 8212 3133", 
+                        "collison@collison.com.au", 
+                        "Collison & Co", 
+                        "Level 4 70 Light Square Adelaide SA 5000 Australia", 
+                        "Patents, Trade marks"]
+                        ]
+        self.exampleAttorneys=[ExampleAttorney(self.read_example_attorney(exampleHTML[i]), exampleData[i], i) for i in range(3)]
 
-# Globally accessible attorney examples
-firstExampleAttorney = read_example_attorney("attorneyHTMLExample.txt")
-secondExampleAttorney = read_example_attorney("attorneyHTMLExample2.txt")
-blankAttorney = read_example_attorney("blankAttorneyExample.txt")
+    def read_example_attorney(self, filename):
+        # Helper function for setting up example attorney HTML to test on
+        rawHTML = ""
+        with open(EXAMPLES_FOLDER / filename, 'r', encoding="utf-8") as f:
+            rawHTML = f.read()
+        soup = BeautifulSoup(rawHTML, 'lxml')
+        return soup.find(class_="list-item attorney")
 
-def test_name_parse():
-    exampleName = "Louis Francisco Yates Habberfield-Short"
-    assert ttipabot.get_contact_data(firstExampleAttorney, " Attorney ") == exampleName, f"should be {exampleName}"
 
-    exampleName = ""
-    assert ttipabot.get_contact_data(blankAttorney, " Attorney ") == exampleName, f"should be {exampleName}"
+@pytest.fixture(scope="session")
+def examples():
+    return Examples()
 
-def test_phone_parse():
-    examplePhoneNumber = "+64 9 353 5423"
-    assert ttipabot.get_contact_data(firstExampleAttorney, " Phone ") == examplePhoneNumber, f"should be {examplePhoneNumber}"
+def test_name_parse(examples):
+    for attorney in examples.exampleAttorneys:
+        assert ttipabot.get_contact_data(attorney.rawHTML, " Attorney ") == attorney.name, f"Attorney {attorney.index} should be {attorney.name}"
 
-    examplePhoneNumber = ""
-    assert ttipabot.get_contact_data(blankAttorney, " Phone ") == examplePhoneNumber, f"should be {examplePhoneNumber}"  
+def test_phone_parse(examples):
+    for attorney in examples.exampleAttorneys:
+        assert ttipabot.get_contact_data(attorney.rawHTML, " Phone ") == attorney.phone, f"Attorney {attorney.index} should be {attorney.phone}"
 
-def test_email_parse():
-    exampleEmail = "louis.habberfield-short@ajpark.com"
-    assert ttipabot.get_contact_data(firstExampleAttorney, " Email ") == exampleEmail, f"should be {exampleEmail}"
+def test_email_parse(examples):
+    for attorney in examples.exampleAttorneys:
+        assert ttipabot.get_contact_data(attorney.rawHTML, " Email ") == attorney.email, f"Attorney {attorney.index} should be {attorney.email}"
 
-def test_firm_parse():
-    #With no listed firm
-    exampleFirm = ""
-    assert ttipabot.get_contact_data(firstExampleAttorney, " Firm ") == exampleFirm, f"should be {exampleFirm}"
+def test_firm_parse(examples):
+    for attorney in examples.exampleAttorneys:
+        assert ttipabot.get_contact_data(attorney.rawHTML, " Firm ") == attorney.firm, f"Attorney {attorney.index} should be {attorney.firm}"
 
-    #With listed firm
-    exampleFirm = "Collison & Co"
-    assert ttipabot.get_contact_data(secondExampleAttorney, " Firm ") == exampleFirm, f"should be {exampleFirm}"
+def test_address_parse(examples):
+    for attorney in examples.exampleAttorneys:
+        assert ttipabot.get_contact_data(attorney.rawHTML, " Address ") == attorney.address, f"Attorney {attorney.index} should be {attorney.address}"
 
-def test_registrations_parse():
-    # With a single registered attorney
-    exampleRegistrations = "Patents"
-    assert ttipabot.get_contact_data(firstExampleAttorney, " Registered as") == exampleRegistrations, f"should be {exampleRegistrations}"
+def test_registrations_parse(examples):
+    for attorney in examples.exampleAttorneys:
+        assert ttipabot.get_contact_data(attorney.rawHTML, " Registered as") == attorney.registrations, f"Attorney {attorney.index} should be {attorney.registrations}"
 
-    exampleRegistrations = "Patents, Trade marks"
-    # With a dual registered attorney
-    assert ttipabot.get_contact_data(secondExampleAttorney, " Registered as") == exampleRegistrations, f"should be {exampleRegistrations}"
+def test_all_data_parse(examples):
+    for attorney in examples.exampleAttorneys:
+        assert ttipabot.get_attorney_data(attorney.rawHTML) == attorney.allData
 
-def test_address_parse():
-    firstExampleAddress = "Level 14, Aon Centre, 29 Customs Street West, Auckland 1010, New Zealand"
-    assert ttipabot.get_contact_data(firstExampleAttorney, " Address ") == firstExampleAddress, f"should be {firstExampleAddress}"
-
-def test_all_data_parse():
-    exampleData = ["Louis Francisco Yates Habberfield-Short", 
-                   "+64 9 353 5423", 
-                   "louis.habberfield-short@ajpark.com", 
-                   "", 
-                   "Level 14, Aon Centre, 29 Customs Street West, Auckland 1010, New Zealand", 
-                   "Patents"]
-    
-    assert ttipabot.get_attorney_data(firstExampleAttorney) == exampleData
-
-def test_multiple_attorneys_data_parse():
-
-    exampleAttorneys = [blankAttorney, firstExampleAttorney, secondExampleAttorney]
-    exampleData = [["Louis Francisco Yates Habberfield-Short", 
-                "+64 9 353 5423", 
-                "louis.habberfield-short@ajpark.com", 
-                "", 
-                "Level 14, Aon Centre, 29 Customs Street West, Auckland 1010, New Zealand", 
-                "Patents"], 
-                ["Donald Iain Angus", 
-                "08 8212 3133", 
-                "collison@collison.com.au", 
-                "Collison & Co", 
-                "Level 4 70 Light Square Adelaide SA 5000 Australia", 
-                "Patents, Trade marks"]
-                ]
-
-    assert ttipabot.parse_register(exampleAttorneys) == exampleData
+def test_multiple_attorneys_data_parse(examples):
+    data = [examples.exampleAttorneys[1].allData, examples.exampleAttorneys[2].allData]
+    html = [attorney.rawHTML for attorney in examples.exampleAttorneys]
+    assert ttipabot.parse_register(html) == data

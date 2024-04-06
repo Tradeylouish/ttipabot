@@ -26,18 +26,19 @@ def test_latest_csvs_single(paths):
     filepaths = paths[1]
     assert ttipabot.get_latest_csvs(filepaths, 1) == [filepaths[2]]
 
-def test_specified_csvs(paths):
+def test_select_filepaths_for_dates(paths):
     filepaths = paths[1]
     # Specifying dates that both have a file
-    assert ttipabot.get_specified_csvs(filepaths, ["2023-03-20", "2023-06-25"]) == [filepaths[0], filepaths[2]]
+    assert ttipabot.select_filepaths_for_dates(filepaths, ["2023-03-20", "2023-06-25"]) == [filepaths[0], filepaths[2]]
 
-def test_specified_csvs_nonexistent(paths):
+def test_select_filepaths_for_dates_nonexistent(paths):
     filepaths = paths[1]
     # Trying to specify a date that doesn't have a file
-    assert ttipabot.get_specified_csvs(filepaths, ["2023-03-20", "2099-06-25"]) == [filepaths[0], None]
+    with pytest.raises(ValueError,  match="No file exists for 2099-06-25"):
+        ttipabot.select_filepaths_for_dates(filepaths, ["2023-03-20", "2099-06-25"]) == [filepaths[0], None]
 
-def test_specified_csvs_malformed(paths):
+def test_select_filepaths_for_dates_malformed(paths):
     filepaths = paths[1]
-    # Malformed strings - should raise exception
-    with pytest.raises(Exception):
-        ttipabot.get_specified_csvs(filepaths, ["garbage", "garbage"])
+    # Entering a string that is not a date
+    with pytest.raises(ValueError, match="Incorrect date format, should be YYYY-MM-DD"):
+        ttipabot.select_filepaths_for_dates(filepaths, ["garbage", "garbage"])
