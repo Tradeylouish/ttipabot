@@ -19,7 +19,8 @@ logging.basicConfig(filename='ttipabot.log', encoding='utf-8', format='%(asctime
 CSV_FOLDER = Path.cwd() / "TTIPAB register saves"
 MEDIA_FOLDER = Path.cwd() / "media"
 
-def ttipab_request(count):
+def ttipab_request(count: int):
+    """Makes a GET request to the TTIPA register asking for <count> results."""
     # Public API endpoint as determined by Inspect Element > Network > Requests on Google Chrome
     urlBase = "https://www.ttipattorney.gov.au//sxa/search/results/"
     urlOptions1 = "?s={21522AF6-8499-4C63-8CFA-02E2B97737BE}&itemid={8B94FE47-304A-4629-AD46-DD208EEF71AA}&sig=als&e=0&p="
@@ -27,8 +28,8 @@ def ttipab_request(count):
     url =  f"{urlBase}{urlOptions1}{count}{urlOptions2}"
     return requests.get(url, stream=True)
 
-def get_full_register():
-    
+def get_full_register() -> list[BeautifulSoup]:
+    """Scrapes the register, cleans the HTML, and returns a list of Soup objects representing attorneys."""
     try:
         #Do an intial ping of the register to determine the total number of results to be requested
         initialResponse = ttipab_request(1)
@@ -41,7 +42,7 @@ def get_full_register():
 
     except Exception as ex:
         logger.error("Failed to scrape register, could be a server-side problem.", exc_info= ex)
-        exit()
+        raise ex
 
     # Get rid of control characters
     rawHTML = rawHTML.replace("\\r", "")
@@ -55,7 +56,8 @@ def get_full_register():
 
     return attorneys
 
-def get_contact_data(result, searchString):
+def get_contact_data(result: BeautifulSoup, searchString: str) -> str:
+    """Searches for a piece of data in the attorney HTML and returns its value."""
     tag = result.find("span", string=searchString)
     if tag is None:
         return ""
@@ -64,58 +66,56 @@ def get_contact_data(result, searchString):
     #Could be two strings for dual registrations, so comma join
     return ", ".join(tag.find_next_sibling().stripped_strings) 
 
-def get_attorney_data(attorney):
-    #Takes a soup representing an attorney
+def get_attorney_data(attorney: BeautifulSoup) -> list[str]:
+    """Returns a list of the data entries for one attorney."""
     fields = [" Attorney ", " Phone ", " Email ", " Firm ", " Address ", " Registered as"]
     return [get_contact_data(attorney, field) for field in fields]
 
-def parse_register(attorneys):
-    #Takes a list of soup objects representing attorneys
+def parse_register(attorneys: list[BeautifulSoup]) -> list[list[str]]:
+    """Returns a nested list of all the data for all attorneys (skipping any blank entries)."""
     data = [get_attorney_data(attorney) for attorney in attorneys 
             if get_contact_data(attorney, " Attorney ") != ""]
-
     return data
 
-def write_to_csv(data, folderpath):
-    #Print the register contents to a CSV file
+def write_to_csv(data: list[list[str]], folderpath: Path) -> None:
+    """Write the register data to an ISO-dated CSV file with an appropriate header."""
     spreadsheet_name = folderpath / (str(datetime.date.today()) + '.csv')
-
     header = ['Name', 'Phone', 'Email', 'Firm', 'Address', 'Registered as']
-
-    # open the file in the write mode
     with spreadsheet_name.open('w', encoding="utf-8", newline='') as f:
         writer = csv.writer(f)
-        # write header to the csv file
         writer.writerow(header)
-        # write data to the csv file
         writer.writerows(data)
 
-def write_raw_html(rawHTML):
+def write_raw_html(rawHTML: str) -> None:
+    """Testing function to dump the HTML to a txt file instead of parsing and writing to csv."""
     with open("registerDump.txt", 'w', encoding="utf-8") as f:
         f.write(rawHTML)
 
-def scrape_register():
+def scrape_register() -> None:
+    """Scrapes the register, parses all the data, and writes it to a csv file."""
     results = get_full_register()
     data = parse_register(results)
     write_to_csv(data, CSV_FOLDER)
 
-def get_csv_filepaths(folderPath):
-    # Filename format means default sort will time-order
+def get_csv_filepaths(folderPath: Path) -> list[Path]:
+    """Returns a list of filepaths to all the csv files in time order."""
+    # ISO naming format means default sort will time-order
     return sorted(list(folderPath.glob('*.csv')))
 
-def get_latest_csvs(csvFilepaths, num):
+def get_latest_csvs(csvFilepaths: list[Path], num: int) -> list[Path]:
+    """Returns the latest <num> filepaths based on their ISO dated name."""
     csvFilepaths.sort()
     latest_csv_filepaths = [csvFilepaths[-i] for i in range(1, num+1)]
     return latest_csv_filepaths
 
-def validate_date(date):
-    """Raises an error if date is not in ISO format."""
+def validate_date(date: str) -> None:
+    """Raises an error if <date> is not in ISO format."""
     try:
         datetime.date.fromisoformat(date)
     except ValueError:
         raise ValueError("Incorrect date format, should be YYYY-MM-DD")
 
-def select_filepaths_for_dates(filepaths, dates):
+def select_filepaths_for_dates(filepaths: list[Path], dates: list[str]) -> list[Path]:
     """Returns a list of paths to files with names matching input dates."""
     datePaths=[]
     for date in dates:
@@ -127,7 +127,8 @@ def select_filepaths_for_dates(filepaths, dates):
 
     return datePaths
 
-def create_dataframes(date1_path, date2_path):
+def create_dataframes(date1_path: Path, date2_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Returns a pair of dataframes created using a pair of filepaths to csvs."""
     #Read the CSV data into dataframes
     df_date1 = pd.read_csv(date1_path, dtype='string')
     df_date2 = pd.read_csv(date2_path, dtype='string')
@@ -143,7 +144,8 @@ def create_dataframes(date1_path, date2_path):
 
     return df_date1, df_date2
 
-def get_diffs(df_date1, df_date2):
+def get_diffs(df_date1: pd.DataFrame, df_date2: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame]:
+    """Return dataframes showing all the differences in data between two input dataframes."""
     # Merge the dataframes so that differences can be compared
     df_diff = pd.merge(df_date1, df_date2, how="outer", indicator="Exist")
 
@@ -162,7 +164,8 @@ def get_diffs(df_date1, df_date2):
 
     return df_left, df_right
 
-def compare_csvs(date1_path, date2_path):
+def compare_csvs(date1_path: Path, date2_path: Path) -> tuple[pd.DataFrame,pd.DataFrame]:
+    """Return a dataframe with data of all the new attorneys, and another with those who changed firms."""
     # Data comparison steps
     (df_date1, df_date2) = create_dataframes(date1_path, date2_path)
     (df_left, df_right) = get_diffs(df_date1, df_date2)
@@ -190,17 +193,16 @@ def compare_csvs(date1_path, date2_path):
 
     return df_newAttorneys, df_changedFirms
 
-def get_latest_dates(num):
+def get_latest_dates(num: int) -> list[str]:
+    """Gets the <num> latest dates among all the existing csv filepaths."""
     latestCsvFilepaths = get_latest_csvs(get_csv_filepaths(CSV_FOLDER), num)
-    # Create a list of strings representing the most recent dates, length equal to num argument
     dates = [filepath.stem for filepath in latestCsvFilepaths]
     return dates
 
-def rank_names(date, num):
+def rank_names(date: str, num: int) -> None:
+    """Prints the <num> longest names on the register as of <date>."""
     csvFilepaths = get_csv_filepaths(CSV_FOLDER)
-    csv = get_specified_csvs(csvFilepaths, [date])[0]
-
-    # TODO vectorise existing code above
+    csv = select_filepaths_for_dates(csvFilepaths, [date])[0]
 
     df = pd.read_csv(csv, dtype='string')
 
@@ -215,14 +217,13 @@ def rank_names(date, num):
     print(f"\nThe top {num} names by length are:\n{df[['Name', 'Length']].head(num).to_markdown()}")
 
 
-def compare_data(dates, chant):
-
+def compare_data(dates: tuple[str, str], chant: bool) -> None:
     date1, date2 = dates
     dates = sorted([date1, date2])
     
     csvFilepaths = get_csv_filepaths(CSV_FOLDER)
 
-    (csv1, csv2) = get_specified_csvs(csvFilepaths, dates)
+    (csv1, csv2) = select_filepaths_for_dates(csvFilepaths, dates)
 
     logger.debug(f"Comparing dates {dates[0]} and {dates[1]}")
 
@@ -260,8 +261,8 @@ def compare_data(dates, chant):
     perform_chant(sound_file, text)
 
 
-def perform_chant(sound_file, text):
-
+def perform_chant(sound_file: str, text: str) -> None:
+    """Uses pygame to perform chanting and display text."""
     pygame.init()
     screen = pygame.display.set_mode(flags=pygame.FULLSCREEN)
     pygame.mixer.music.load(sound_file)
@@ -286,8 +287,8 @@ def perform_chant(sound_file, text):
         screen.fill(pygame.Color('black'))
         pygame.display.flip()
 
-def fade_text(screen, line):
-
+def fade_text(screen: pygame.Surface, line: str) -> None:
+    """Uses pygame to fade a line of text in and back out with a fixed timing."""
     clock = pygame.time.Clock()
     timer = 0
     # Constants for timing adjustment, based on Dune movie intro
