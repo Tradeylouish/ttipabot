@@ -3,11 +3,13 @@ import datetime
 import csv
 from pathlib import Path
 import random
+import os
 
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup, Tag
-import click
+
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 
 
@@ -98,23 +100,21 @@ def scrape_register():
     write_to_csv(data, CSV_FOLDER)
 
 def get_csv_filepaths(folderPath):
-    return list(folderPath.glob('*.csv'))
-
-def get_latest_csvs(csvFilepaths):
     # Filename format means default sort will time-order
-    csvFilepaths.sort()
+    return sorted(list(folderPath.glob('*.csv')))
 
-    # Return the last two entries
-    return csvFilepaths[-2], csvFilepaths[-1]
+def get_latest_csvs(csvFilepaths, num):
+    csvFilepaths.sort()
+    latest_csv_filepaths = [csvFilepaths[-i] for i in range(1, num+1)]
+    return latest_csv_filepaths
 
 def get_specified_csvs(csvFilepaths, dates):
-    # Look for a filepath that contain the date string
+    # Look for a filepath that contains the date string
     datePaths = [next((path for path in csvFilepaths if date in str(path)), None) for date in dates]
 
     return datePaths
 
 def create_dataframes(date1_path, date2_path):
-
     #Read the CSV data into dataframes
     df_date1 = pd.read_csv(date1_path, dtype='string')
     df_date2 = pd.read_csv(date2_path, dtype='string')
@@ -131,7 +131,6 @@ def create_dataframes(date1_path, date2_path):
     return df_date1, df_date2
 
 def get_diffs(df_date1, df_date2):
-
     # Merge the dataframes so that differences can be compared
     df_diff = pd.merge(df_date1, df_date2, how="outer", indicator="Exist")
 
@@ -179,20 +178,12 @@ def compare_csvs(date1_path, date2_path):
     return df_newAttorneys, df_changedFirms
 
 def get_latest_dates(num):
-
-    csvFilepaths = get_csv_filepaths(CSV_FOLDER)
-
-    # Filename format means default sort will time-order
-    csvFilepaths.sort()
-
+    latestCsvFilepaths = get_latest_csvs(get_csv_filepaths(CSV_FOLDER), num)
     # Create a list of strings representing the most recent dates, length equal to num argument
-    dates = [Path(csvFilepaths[-i]).stem for i in range(1, num+1)]
-
+    dates = [filepath.stem for filepath in latestCsvFilepaths]
     return dates
 
 def rank_names(date, num):
-
-    #print(dates)
     csvFilepaths = get_csv_filepaths(CSV_FOLDER)
     csv = get_specified_csvs(csvFilepaths, [date])[0]
 
@@ -214,16 +205,13 @@ def rank_names(date, num):
 def compare_data(dates, chant):
 
     date1, date2 = dates
-    # Ensure date1 is the earliest date, so later code can assume this
-    FORMAT = "%Y-%m-%d"
-    if datetime.datetime.strptime(date1, FORMAT) > datetime.datetime.strptime(date2, FORMAT):
-        date1, date2 = date2, date1
+    dates = sorted([date1, date2])
     
     csvFilepaths = get_csv_filepaths(CSV_FOLDER)
 
-    (csv1, csv2) = get_specified_csvs(csvFilepaths, [date1, date2])
+    (csv1, csv2) = get_specified_csvs(csvFilepaths, dates)
 
-    logger.debug(f"Comparing dates {date1} and {date2}")
+    logger.debug(f"Comparing dates {dates[0]} and {dates[1]}")
 
     try:
         (newAttorneys, firmChanges) = compare_csvs(csv1, csv2)
@@ -257,6 +245,7 @@ def compare_data(dates, chant):
         logger.debug(f"Found {len(text)} new patent attorneys.")
     
     perform_chant(sound_file, text)
+
 
 def perform_chant(sound_file, text):
 
@@ -327,34 +316,4 @@ def fade_text(screen, line):
         pygame.display.flip()
         timer += clock.tick(24)
 
-
-# Thin wrappers for cli commands
-@click.group()
-def cli():
-    pass
         
-@cli.command()
-@click.option('--compare', is_flag=True, show_default=True, default=False, help='Run compare command after scrape')
-@click.option('--chant', is_flag=True, show_default=True, default=False, help='Run compare command with the chant flag')
-@click.option('--ranknames', is_flag=True, show_default=True, default=False, help='Run ranknames command after scrape')
-def scrape(compare, chant, ranknames):
-    scrape_register()
-    # Optionally call the other commands using the scrape just performed
-    if chant: compare = True
-    if compare: compare_data(get_latest_dates(num=2), chant)
-    if ranknames: rank_names(date=get_latest_dates(num=1)[0], num=10)
-
-@cli.command()
-@click.option('--dates', nargs=2, default=get_latest_dates(num=2), help='dates to compare, in format: \'YY-MM-DD\' \'YY-MM-DD\'')
-@click.option('--chant', is_flag=True, show_default=True, default=False, help='Sardaukar chant for any new attorneys. Or a quote.')
-def compare(dates, chant):
-    compare_data(dates, chant)
-
-@cli.command()
-@click.option('--date', default=get_latest_dates(num=1)[0], help='date to rank name lengths')
-@click.option('--num', default=10, help='number of names in top ranking')
-def ranknames(date, num):
-    rank_names(date, num)
-
-if __name__ == '__main__':
-    cli()

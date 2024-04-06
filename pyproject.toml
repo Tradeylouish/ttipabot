@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ttipabot = "ttipabot.ttipabot:cli"
+ttipabot = "ttipabot.cli:cli"
 
 [build-system]
 requires = ["setuptools>=61.0"]
