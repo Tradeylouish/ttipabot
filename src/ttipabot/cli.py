@@ -26,5 +26,6 @@ def compare(dates, chant):
 @cli.command()
 @click.option('--date', default=tt.get_latest_dates(num=1)[0], help='date to rank name lengths')
 @click.option('--num', default=10, help='number of names in top ranking')
-def ranknames(date, num):
-    tt.rank_names(date, num)
+@click.option('--chant', is_flag=True, show_default=True, default=False, help='Sardaukar chant for the attorneys with the longest names.')
+def ranknames(date, num, chant):
+    tt.rank_names(date, num, chant)

@@ -1,6 +1,7 @@
 import datetime
 from pathlib import Path
 import pandas as pd
+from typing import NamedTuple, Iterable
 
 def get_csv_filepaths(folderPath: Path) -> list[Path]:
     """Returns a list of filepaths to all the csv files in time order."""
@@ -39,8 +40,8 @@ def create_dataframes(date1_path: Path, date2_path: Path) -> tuple[pd.DataFrame,
     df_date2 = pd.read_csv(date2_path, dtype='string')
 
     # Replace missing values with empty strings for comparison purposes
-    df_date1.fillna('')
-    df_date2.fillna('')
+    df_date1.fillna('', inplace=True)
+    df_date2.fillna('', inplace=True)
 
     #diff = df_date2.compare(df_date1, align_axis=1)
 
@@ -97,3 +98,28 @@ def compare_csvs(date1_path: Path, date2_path: Path) -> tuple[pd.DataFrame,pd.Da
     df_changedFirms.index += 1
 
     return df_newAttorneys, df_changedFirms
+
+def csv_to_ranked_df(csvPath: Path, num: int) -> pd.DataFrame:
+    df = pd.read_csv(csvPath, dtype='string')
+    # Replace missing values with empty strings
+    df.fillna('', inplace=True)
+    # Sort names and reindex to show ranking
+    df['Length'] = df['Name'].apply(lambda col: len(col))
+    df.sort_values(by='Length', ascending=False, inplace=True)
+    df.reset_index(inplace=True)
+    df.index += 1
+    return df.head(num)
+
+def attorneys_df_to_lines(attorneys_df: pd.DataFrame) -> list[str]:
+    lines = [f"{attorney.Name}." if attorney.Firm == '' else f"{attorney.Name} of {attorney.Firm}." for attorney in attorneys_df.itertuples()]
+    return lines
+
+def remove_TM_attorneys(attorneys_df: pd.DataFrame) -> pd.DataFrame:
+    patentAttorneys_df = attorneys_df.query("`Registered as` != 'Trade marks'")
+    return patentAttorneys_df
+
+def check_already_scraped(folderPath: Path) -> bool:
+    filepaths = get_csv_filepaths(folderPath)
+    latestFilepath = get_latest_csvs(filepaths, 1)
+    date = str(datetime.date.today())
+    return date in str(latestFilepath)

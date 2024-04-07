@@ -5,41 +5,38 @@ import logging
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
-import pandas
 
 MEDIA_FOLDER = Path.cwd() / "media"
 logger = logging.getLogger(__name__)
 
-def choose_line(patentAttorneys: pandas.DataFrame) -> tuple[Path, str]:
-    if not patentAttorneys:
-        # Select a random quote
-        with open(MEDIA_FOLDER / 'quotes.txt', 'r') as file:
-            lines = [line.rstrip() for line in file]
-            text = [random.choice(lines)]
-        sound_file = MEDIA_FOLDER / 'sardaukar-growl.mp3'
-        logger.debug(f"No new patent attorneys found, random quote is: \"{text[0]}\"")
-    else:
-        text = [f"{patentAttorney.Name}." if patentAttorney.Firm == '' else f"{patentAttorney.Name} of {patentAttorney.Firm}." for patentAttorney in patentAttorneys]
-        sound_file = MEDIA_FOLDER / 'sardaukar-chant.mp3'
-        logger.debug(f"Found {len(text)} new patent attorneys.")
-    
-    return sound_file, text
+def get_random_quote(filepath: Path) -> str:
+    with open(filepath, 'r') as file:
+        lines = [line.rstrip() for line in file]
+        return random.choice(lines)
 
-
-def perform_chant(sound_file: str, text: str) -> None:
+def perform_chant(lines: list[str]) -> None:
     """Uses pygame to perform chanting and display text."""
     pygame.init()
     screen = pygame.display.set_mode(flags=pygame.FULLSCREEN)
+    
+    sound_file = MEDIA_FOLDER / 'sardaukar-chant.mp3'
+    if not lines:
+        lines.append(get_random_quote(MEDIA_FOLDER / 'quotes.txt'))
+        sound_file = MEDIA_FOLDER / 'sardaukar-growl.mp3'
+        logger.debug(f"No attorneys to chant for, random quote is: \"{lines[0]}\"")
+    else:
+        logger.debug(f"Initiating chant for {len(lines)} attorneys.")
+
     pygame.mixer.music.load(sound_file)
     # Hacky way to ensure enough chant loops to cover everyone - based on approx ratio of chant length to number of lines to fade
-    playcount = int(len(text) / 8) + 1
+    playcount = int(len(lines) / 8) + 1
     try:
         pygame.mixer.music.play(playcount)
         logger.debug(f"Playing {sound_file} {playcount} time(s).")
     except Exception as ex:
         logger.error(f"Error attempting to play {sound_file}, check filepaths.", exc_info= ex)
 
-    for line in text:
+    for line in lines:
         fade_text(screen, line)
     logger.debug(f"Finished showing all text.")
     
@@ -51,6 +48,7 @@ def perform_chant(sound_file: str, text: str) -> None:
 
         screen.fill(pygame.Color('black'))
         pygame.display.flip()
+
 
 def fade_text(screen: pygame.Surface, line: str) -> None:
     """Uses pygame to fade a line of text in and back out with a fixed timing."""
