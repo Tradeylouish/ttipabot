@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(filename='ttipabot.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 #TODO Refactor directory lookup to avoid globals
-CSV_FOLDER_NAME = "TTIPAB register saves"
+CSV_FOLDER_NAME = "TTIPA register saves"
 ROOT_FOLDER_NAME = "TTIPABot"
 
 def find_path_to_folder(folderName: str) -> Path:
@@ -51,7 +51,8 @@ def scrape_register() -> None:
 
 def get_latest_dates(num: int) -> list[str]:
     """Gets the <num> latest dates among all the existing csv filepaths."""
-    latestCsvFilepaths = analyser.get_latest_csvs(analyser.get_csv_filepaths(csvFolderPath), num)
+    csvFilepaths = analyser.get_csv_filepaths(csvFolderPath)
+    latestCsvFilepaths = analyser.get_latest_csvs(csvFilepaths, num)
     dates = [filepath.stem for filepath in latestCsvFilepaths]
     return dates
 
@@ -77,7 +78,7 @@ def compare_data(dates: tuple[str, str], chant: bool) -> None:
     
     csvFilepaths = analyser.get_csv_filepaths(csvFolderPath)
     csv1, csv2 = analyser.select_filepaths_for_dates(csvFilepaths, dates)
-    df1, df2 = analyser.csvs_to_dfs(csv1, csv2)
+    df1, df2 = analyser.csvs_to_dfs([csv1, csv2])
 
     logger.debug(f"Comparing dates {dates[0]} and {dates[1]}")
 
@@ -101,3 +102,9 @@ def compare_data(dates: tuple[str, str], chant: bool) -> None:
     patentAttorneys_df = analyser.remove_tm_attorneys(newAttorneys_df)
     lines = analyser.attorneys_df_to_lines(patentAttorneys_df)
     chanter.perform_chant(lines)
+
+def print_dates(num: int) -> None:
+    """Print <num> latest dates available."""
+    print("Available dates:")
+    for date in get_latest_dates(num):
+        print(date)
