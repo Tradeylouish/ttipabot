@@ -6,7 +6,7 @@ import logging
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 
-MEDIA_FOLDER = Path.cwd() / "media"
+MEDIA_FOLDER = rootFolderPath = Path(__file__).parents[2] / "media"
 logger = logging.getLogger(__name__)
 
 def get_random_quote(filepath: Path) -> str:
