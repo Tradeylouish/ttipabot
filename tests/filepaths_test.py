@@ -1,6 +1,7 @@
 import pytest
 from ttipabot import analyser
 from pathlib import Path
+import datetime
 
 @pytest.fixture(scope="session")
 def paths(tmp_path_factory) -> tuple[Path, Path]:
@@ -19,12 +20,19 @@ def test_get_csv_filepaths(paths: tuple[Path, Path]):
     # Should be time-ordered
     assert analyser.get_csv_filepaths(folderpath) == sorted(filepaths)
 
+def test_validate_date():
+    analyser.validate_date("2023-03-20")
+    with pytest.raises(Exception):
+        assert analyser.validate_date("20-03-2023")
+
 def test_latest_csvs(paths: tuple[Path, Path]):
     filepaths = paths[1]
-    assert analyser.get_latest_csvs(filepaths, 2) == [filepaths[2], filepaths[1]]
+    # Order doesn't matter
+    assert sorted(analyser.get_latest_csvs(filepaths, 2)) == sorted(filepaths[-2:])
 
 def test_latest_csvs_single(paths: tuple[Path, Path]):
     filepaths = paths[1]
+    #print(filepaths)
     assert analyser.get_latest_csvs(filepaths, 1) == [filepaths[2]]
 
 def test_select_filepaths_for_dates(paths: tuple[Path, Path]):
@@ -43,3 +51,12 @@ def test_select_filepaths_for_dates_malformed(paths: tuple[Path, Path]):
     # Entering a string that is not a date
     with pytest.raises(ValueError, match="Incorrect date format, should be YYYY-MM-DD"):
         analyser.select_filepaths_for_dates(filepaths, ["garbage", "garbage"])
+
+def test_check_already_scraped(paths: tuple[Path, Path]):
+    folderpath = paths[0]
+    assert not analyser.check_already_scraped(folderpath)
+    # Add a file with today's date
+    datePath = folderpath / f"{datetime.date.today()}.csv"
+    datePath.touch()
+    assert analyser.check_already_scraped(folderpath)
+

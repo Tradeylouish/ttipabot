@@ -10,9 +10,7 @@ def get_csv_filepaths(folderPath: Path) -> list[Path]:
 
 def get_latest_csvs(csvFilepaths: list[Path], num: int) -> list[Path]:
     """Returns the latest <num> filepaths based on their ISO dated name."""
-    csvFilepaths.sort()
-    latest_csv_filepaths = [csvFilepaths[-i] for i in range(1, num+1)]
-    return latest_csv_filepaths
+    return sorted(csvFilepaths)[-num:]
 
 def validate_date(date: str) -> None:
     """Raises an error if <date> is not in ISO format."""
@@ -33,22 +31,14 @@ def select_filepaths_for_dates(filepaths: list[Path], dates: list[str]) -> list[
 
     return datePaths
 
-def create_dataframes(date1_path: Path, date2_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Returns a pair of dataframes created using a pair of filepaths to csvs."""
+def csv_to_df(csvPath: Path) -> pd.DataFrame:
+    """Converts a csv to a dataframe"""
+    return pd.read_csv(csvPath, dtype='string').fillna('')
+
+def csvs_to_dfs(datePaths: list[Path]) -> list[pd.DataFrame]:
+    """Returns a list of dataframes from a list of filepaths to csvs."""
     #Read the CSV data into dataframes
-    df_date1 = pd.read_csv(date1_path, dtype='string')
-    df_date2 = pd.read_csv(date2_path, dtype='string')
-
-    # Replace missing values with empty strings for comparison purposes
-    df_date1.fillna('', inplace=True)
-    df_date2.fillna('', inplace=True)
-
-    #diff = df_date2.compare(df_date1, align_axis=1)
-
-    # Reset the index
-    df_date2 = df_date2.reset_index()
-
-    return df_date1, df_date2
+    return [csv_to_df(datePath) for datePath in datePaths]
 
 def get_diffs(df_date1: pd.DataFrame, df_date2: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame]:
     """Return dataframes showing all the differences in data between two input dataframes."""
@@ -58,23 +48,18 @@ def get_diffs(df_date1: pd.DataFrame, df_date2: pd.DataFrame) -> tuple[pd.DataFr
     # Query which rows are different
     df_diff = df_diff.query("Exist != 'both'")
 
-    #print(df_diff)
-
     # Separate rows that have changed into a pair of dataframes
-    df_left = df_diff.query("Exist == 'left_only'")
-    df_right = df_diff.query("Exist == 'right_only'")
+    df_left = df_diff.query("Exist == 'left_only'").sort_values(by = 'Name')
+    df_right = df_diff.query("Exist == 'right_only'").sort_values(by = 'Name')
 
     # TODO - name change detect logic?
-    df_left = df_left.sort_values(by = 'Name')
-    df_right = df_right.sort_values(by = 'Name')
 
     return df_left, df_right
 
-def compare_csvs(date1_path: Path, date2_path: Path) -> tuple[pd.DataFrame,pd.DataFrame]:
+def compare_dfs(df_date1: pd.DataFrame, df_date2: pd.DataFrame) -> tuple[pd.DataFrame,pd.DataFrame]:
     """Return a dataframe with data of all the new attorneys, and another with those who changed firms."""
     # Data comparison steps
-    (df_date1, df_date2) = create_dataframes(date1_path, date2_path)
-    (df_left, df_right) = get_diffs(df_date1, df_date2)
+    df_left, df_right = get_diffs(df_date1, df_date2)
     
     # Find which names are new
     df_names = pd.merge(df_left, df_right, on='Name', how="outer", indicator="NameExist")
@@ -99,11 +84,8 @@ def compare_csvs(date1_path: Path, date2_path: Path) -> tuple[pd.DataFrame,pd.Da
 
     return df_newAttorneys, df_changedFirms
 
-def csv_to_ranked_df(csvPath: Path, num: int) -> pd.DataFrame:
-    df = pd.read_csv(csvPath, dtype='string')
-    # Replace missing values with empty strings
-    df.fillna('', inplace=True)
-    # Sort names and reindex to show ranking
+def name_rank_df(df: pd.DataFrame, num: int) -> pd.DataFrame:
+    """Make a dataframe of <num> rows ranked by name length"""
     df['Length'] = df['Name'].apply(lambda col: len(col))
     df.sort_values(by='Length', ascending=False, inplace=True)
     df.reset_index(inplace=True)
@@ -111,15 +93,15 @@ def csv_to_ranked_df(csvPath: Path, num: int) -> pd.DataFrame:
     return df.head(num)
 
 def attorneys_df_to_lines(attorneys_df: pd.DataFrame) -> list[str]:
-    lines = [f"{attorney.Name}." if attorney.Firm == '' else f"{attorney.Name} of {attorney.Firm}." for attorney in attorneys_df.itertuples()]
-    return lines
+    """Convert a dataframe of attorneys to a list of strings to act as lines for display."""
+    return [f"{attorney.Name}." if attorney.Firm == '' else f"{attorney.Name} of {attorney.Firm}." for attorney in attorneys_df.itertuples()]
 
-def remove_TM_attorneys(attorneys_df: pd.DataFrame) -> pd.DataFrame:
-    patentAttorneys_df = attorneys_df.query("`Registered as` != 'Trade marks'")
-    return patentAttorneys_df
+def remove_tm_attorneys(attorneys_df: pd.DataFrame) -> pd.DataFrame:
+    """Return a new dataframe with all the solely TM registered attorneys removed"""
+    return attorneys_df.query("`Registered as` != 'Trade marks'")
 
 def check_already_scraped(folderPath: Path) -> bool:
     filepaths = get_csv_filepaths(folderPath)
-    latestFilepath = get_latest_csvs(filepaths, 1)
+    [latestFilepath] = get_latest_csvs(filepaths, 1)
     date = str(datetime.date.today())
-    return date in str(latestFilepath)
+    return date == latestFilepath.stem
