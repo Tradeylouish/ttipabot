@@ -14,7 +14,7 @@ def scrape(compare, chant, ranknames):
     tt.scrape_register()
     # Optionally call the other commands using the scrape just performed
     if chant: compare = True
-    if compare: tt.compare_data(tt.get_latest_dates(num=2), chant)
+    if compare: tt.compare_data(t.get_latest_dates(num=2), chant)
     if ranknames: tt.rank_names(date=tt.get_latest_dates(num=1)[0], num=10)
 
 @cli.command()
