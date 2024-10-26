@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(filename='ttipabot.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 #TODO Refactor directory lookup to avoid using global
-CSV_FOLDER = Path(__file__).parents[2] / "scrapes"
+#CSV_FOLDER = Path(__file__).parents[2] / "scrapes"
+CSV_FOLDER = Path.cwd() / "scrapes"
 
 def scrape_register() -> None:
     """Scrapes the register, parses all the data, and writes it to a csv file."""
@@ -31,7 +32,19 @@ def get_latest_dates(num: int) -> list[str]:
     csvFilepaths = analyser.get_csv_filepaths(CSV_FOLDER)
     latestCsvFilepaths = analyser.get_latest_csvs(csvFilepaths, num)
     dates = [filepath.stem for filepath in latestCsvFilepaths]
+    # If there's not enough dates available, fill the rest of the list with blanks
+    if len(dates) < num:
+        diff = num-len(dates)
+        dates.extend(['']*diff)
+    
     return dates
+
+def get_latest_date() -> str:
+    """Gets the latest date among all the existing csv filepaths."""
+    return get_latest_dates(num=1)[0]
+
+def count_dates() -> int:
+    return len(analyser.get_csv_filepaths(CSV_FOLDER))
 
 def rank_names(date: str, num: int, chant: bool) -> None:
     """Prints the <num> longest names on the register as of <date>."""
@@ -82,6 +95,18 @@ def compare_data(dates: tuple[str, str], chant: bool) -> None:
 
 def print_dates(num: int) -> None:
     """Print <num> latest dates available."""
-    print("Available dates:")
+    print(f"Available dates ({num}):")
+    #TODO prettify layout with columns or grid for large numbers
     for date in get_latest_dates(num):
         print(date)
+
+def rank_firms(date: str, num: int, pat: bool, tm: bool) -> None:
+    """Prints the <num> biggest firms (by attorney count) on the register as of <date>."""
+    csvFilepaths = analyser.get_csv_filepaths(CSV_FOLDER)
+    csv = analyser.select_filepaths_for_dates(csvFilepaths, [date])[0]
+    df = analyser.csv_to_df(csv)
+
+    df = analyser.filter_attorneys(df, pat, tm)
+    df_firms = analyser.firm_rank_df(df, num)
+
+    print(f"\nThe biggest {num} firms by attorney count as of {date} are:\n{df_firms[['Firm', 'Attorneys']].to_markdown()}")

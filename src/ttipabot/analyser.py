@@ -17,7 +17,7 @@ def validate_date(date: str) -> None:
     try:
         datetime.date.fromisoformat(date)
     except ValueError:
-        raise ValueError("Incorrect date format, should be YYYY-MM-DD")
+        raise ValueError("Missing or incorrectly formatted date, should be YYYY-MM-DD")
 
 def select_filepaths_for_dates(filepaths: list[Path], dates: list[str]) -> list[Path]:
     """Returns a list of paths to files with names matching input dates."""
@@ -91,6 +91,47 @@ def name_rank_df(df: pd.DataFrame, num: int) -> pd.DataFrame:
     df.reset_index(inplace=True)
     df.index += 1
     return df.head(num)
+
+def filter_attorneys(df: pd.DataFrame, pat: bool, tm: bool) -> pd.DataFrame:
+
+    if pat:
+        filter = df['Registered as'].str.contains('Patents')
+        df = df[filter]
+    
+    if tm:
+        filter = df['Registered as'].str.contains('Trade marks')
+        df = df[filter]
+
+    return df
+
+
+def firm_rank_df(df: pd.DataFrame, num: int) -> pd.DataFrame:
+    """Make a dataframe of <num> rows representing firms ranked by attorney count"""
+    
+    #TODO Improve the suffix elimination to account for variations
+    for suffix in [" Limited", " Ltd", " Pty", " Pte", " Patent & Trade Mark Attorneys", " Patent and Trade Mark Attorneys", 
+                   " Patent and Trade Marks Attorneys",
+                   " Patent & Trade Marks Attorneys",
+                   " Patent and Trade marks attorneys",
+                   " Patent & Trademark Attorneys"
+                   ]:
+        df['Firm'] = df['Firm'].str.removesuffix(suffix)
+        #df['Firm'] = df['Firm'].str.removesuffix(suffix.upper())
+
+    df['Firm'] = df['Firm'].str.replace(' and ', ' & ')
+    
+    #TODO Consolidate firms with accronyms e.g. IPONZ
+
+    # Reformat firms listed in all uppercase
+    mask = df['Firm'].str.isupper()
+    df.loc[mask, 'Firm'] = df['Firm'].str.title()
+    
+    firm_df = df['Firm'].value_counts().to_frame()
+    firm_df.reset_index(inplace=True)
+    firm_df.index += 1
+    firm_df = firm_df.rename(columns={'count': 'Attorneys'})
+
+    return firm_df.head(num)
 
 def attorneys_df_to_lines(attorneys_df: pd.DataFrame) -> list[str]:
     """Convert a dataframe of attorneys to a list of strings to act as lines for display."""
