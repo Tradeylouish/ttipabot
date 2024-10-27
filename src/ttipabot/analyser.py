@@ -3,10 +3,10 @@ from pathlib import Path
 import pandas as pd
 from typing import NamedTuple, Iterable
 
-def get_csv_filepaths(folderPath: Path) -> list[Path]:
+def get_csv_filepaths(dirPath: Path) -> list[Path]:
     """Returns a list of filepaths to all the csv files in time order."""
     # ISO naming format means default sort will time-order
-    return sorted(list(folderPath.glob('*.csv')))
+    return sorted(list(dirPath.glob('*.csv')))
 
 def get_latest_csvs(csvFilepaths: list[Path], num: int) -> list[Path]:
     """Returns the latest <num> filepaths based on their ISO dated name."""
@@ -167,8 +167,8 @@ def remove_tm_attorneys(attorneys_df: pd.DataFrame) -> pd.DataFrame:
     """Return a new dataframe with all the solely TM registered attorneys removed"""
     return attorneys_df.query("`Registered as` != 'Trade marks'")
 
-def check_already_scraped(folderPath: Path) -> bool:
-    filepaths = get_csv_filepaths(folderPath)
+def check_already_scraped(dirPath: Path) -> bool:
+    filepaths = get_csv_filepaths(dirPath)
     [latestFilepath] = get_latest_csvs(filepaths, 1)
     date = str(datetime.date.today())
     return date == latestFilepath.stem

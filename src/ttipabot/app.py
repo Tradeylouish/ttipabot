@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(filename='ttipabot.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 #TODO Refactor directory lookup to avoid using global
-#CSV_FOLDER = Path(__file__).parents[2] / "scrapes"
-CSV_FOLDER = Path.cwd() / "scrapes"
+CSV_FOLDER = Path(__file__).parents[0] / "scrapes"
+print(CSV_FOLDER)
 
 def scrape_register() -> None:
     """Scrapes the register, parses all the data, and writes it to a csv file."""
