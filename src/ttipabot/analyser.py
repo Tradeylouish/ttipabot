@@ -116,20 +116,21 @@ def consolidate_firms(df: pd.DataFrame) -> pd.DataFrame:
           'WRAYS' : 'Wrays',
           'WALLINGTON-DUMMER' : 'Wallington-Dummer',
           'ORIGIN' : 'Origin',
-          'Origin IP' : 'Origin'
+          'Origin IP' : 'Origin',
+          'MADDERNS' : 'Madderns'
           }
 
     for old, new in di.items():
         df['Firm'] = df['Firm'].str.replace(old, new)
 
     #TODO Improve the suffix elimination to better account for variations
-    for suffix in [" Limited", " Ltd", 'LTD', " Pty", " Pte", 'PTY',
-                   " Patent & Trade Mark Attorneys", 
-                   " Patent & Trade Marks Attorneys",
-                   " Patent & Trade marks attorneys",
-                   " Patent & Trademark Attorneys",
-                   " Patent & Trademark Attorney",
-                   ","
+    for suffix in [' Limited', ' Ltd', ' LIMITED', ' LTD', ' Pty', ' Pte', ' PTY',
+                   ' Patent & Trade Mark Attorneys', 
+                   ' Patent & Trade Marks Attorneys',
+                   ' Patent & Trade marks attorneys',
+                   ' Patent & Trademark Attorneys',
+                   ' Patent & Trademark Attorney',
+                   ','
                    ]:
         df['Firm'] = df['Firm'].str.removesuffix(suffix)
         #df['Firm'] = df['Firm'].str.removesuffix(suffix.upper())
@@ -142,8 +143,6 @@ def consolidate_firms(df: pd.DataFrame) -> pd.DataFrame:
 
     # Label blank entry as no firm
     df['Firm'] = df['Firm'].replace(r'^\s*$', '<No firm>', regex=True)
-
-    
 
     return df
 
