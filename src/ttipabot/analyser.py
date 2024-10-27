@@ -93,7 +93,7 @@ def name_rank_df(df: pd.DataFrame, num: int) -> pd.DataFrame:
     return df.head(num)
 
 def filter_attorneys(df: pd.DataFrame, pat: bool, tm: bool) -> pd.DataFrame:
-
+    """Filter attorneys based on registration type"""
     if pat:
         filter = df['Registered as'].str.contains('Patents')
         df = df[filter]
@@ -104,27 +104,54 @@ def filter_attorneys(df: pd.DataFrame, pat: bool, tm: bool) -> pd.DataFrame:
 
     return df
 
-
-def firm_rank_df(df: pd.DataFrame, num: int) -> pd.DataFrame:
-    """Make a dataframe of <num> rows representing firms ranked by attorney count"""
+def consolidate_firms(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply consolidation rules to account for variation in firm spelling"""
     
-    #TODO Improve the suffix elimination to account for variations
-    for suffix in [" Limited", " Ltd", " Pty", " Pte", " Patent & Trade Mark Attorneys", " Patent and Trade Mark Attorneys", 
-                   " Patent and Trade Marks Attorneys",
+    #TODO Acronym detection algorithm?
+    # Manual consolidation dictionary
+    di = {' and ':' & ', 
+          'Intellectual Property Office of NZ' : 'IPONZ',
+          'Intellectual Property Office of New Zealand' : 'IPONZ',
+          'GRIFFITH HACK' : 'Griffith Hack',
+          'WRAYS' : 'Wrays',
+          'WALLINGTON-DUMMER' : 'Wallington-Dummer',
+          'ORIGIN' : 'Origin',
+          'Origin IP' : 'Origin'
+          }
+
+    for old, new in di.items():
+        df['Firm'] = df['Firm'].str.replace(old, new)
+
+    #TODO Improve the suffix elimination to better account for variations
+    for suffix in [" Limited", " Ltd", 'LTD', " Pty", " Pte", 'PTY',
+                   " Patent & Trade Mark Attorneys", 
                    " Patent & Trade Marks Attorneys",
-                   " Patent and Trade marks attorneys",
-                   " Patent & Trademark Attorneys"
+                   " Patent & Trade marks attorneys",
+                   " Patent & Trademark Attorneys",
+                   " Patent & Trademark Attorney",
+                   ","
                    ]:
         df['Firm'] = df['Firm'].str.removesuffix(suffix)
         #df['Firm'] = df['Firm'].str.removesuffix(suffix.upper())
 
-    df['Firm'] = df['Firm'].str.replace(' and ', ' & ')
-    
-    #TODO Consolidate firms with accronyms e.g. IPONZ
-
     # Reformat firms listed in all uppercase
-    mask = df['Firm'].str.isupper()
+    mask = df['Firm'].str.isupper() & df['Firm'].str.contains(' ')
     df.loc[mask, 'Firm'] = df['Firm'].str.title()
+    for partial_acronym in ['DLA ', 'HWL ', ' IP']:
+        df['Firm'] = df['Firm'].str.replace(partial_acronym.title(), partial_acronym)
+
+    # Label blank entry as no firm
+    df['Firm'] = df['Firm'].replace(r'^\s*$', '<No firm>', regex=True)
+
+    
+
+    return df
+
+def firm_rank_df(df: pd.DataFrame, num: int, raw: bool) -> pd.DataFrame:
+    """Make a dataframe of <num> rows representing firms ranked by attorney count"""
+    
+    if not raw:
+        df = consolidate_firms(df)
     
     firm_df = df['Firm'].value_counts().to_frame()
     firm_df.reset_index(inplace=True)

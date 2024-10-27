@@ -45,6 +45,7 @@ def dates(num):
 @click.option('--num', default=10, help='number of firms in top ranking')
 @click.option('--pat', is_flag=True, show_default=True, default=False, help='Only count patent attorneys.')
 @click.option('--tm', is_flag=True, show_default=True, default=False, help='Only count TM attorneys.')
-def firms(date, num, pat, tm):
+@click.option('--raw', is_flag=True, show_default=True, default=False, help='Use raw firm data without consolidation.')
+def firms(date, num, pat, tm, raw):
     """Print the dates of previous scrapes."""
-    tt.rank_firms(date, num, pat, tm)
+    tt.rank_firms(date, num, pat, tm, raw)

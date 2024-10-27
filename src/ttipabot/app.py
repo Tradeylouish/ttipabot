@@ -100,13 +100,13 @@ def print_dates(num: int) -> None:
     for date in get_latest_dates(num):
         print(date)
 
-def rank_firms(date: str, num: int, pat: bool, tm: bool) -> None:
+def rank_firms(date: str, num: int, pat: bool, tm: bool, raw: bool) -> None:
     """Prints the <num> biggest firms (by attorney count) on the register as of <date>."""
     csvFilepaths = analyser.get_csv_filepaths(CSV_FOLDER)
     csv = analyser.select_filepaths_for_dates(csvFilepaths, [date])[0]
     df = analyser.csv_to_df(csv)
 
     df = analyser.filter_attorneys(df, pat, tm)
-    df_firms = analyser.firm_rank_df(df, num)
+    df_firms = analyser.firm_rank_df(df, num, raw)
 
     print(f"\nThe biggest {num} firms by attorney count as of {date} are:\n{df_firms[['Firm', 'Attorneys']].to_markdown()}")
