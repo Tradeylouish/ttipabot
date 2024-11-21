@@ -16,15 +16,18 @@ def scrape(compare, chant, ranknames):
     tt.scrape_register()
     # Optionally call the other commands using the scrape just performed
     if chant: compare = True
-    if compare: tt.compare_data(tt.get_latest_dates(num=2), chant)
-    if ranknames: tt.rank_names(date=tt.get_latest_dates(num=1)[0], num=10)
+    if compare: tt.compare_data(tt.get_dates(num=2, oldest=False), chant)
+    if ranknames: tt.rank_names(tt.get_latest_date(), num=10)
 
 @cli.command()
-@click.option('--dates', nargs=2, default=tt.get_latest_dates(num=2), help='dates to compare, in format: YY-MM-DD YY-MM-DD')
+@click.option('--dates', nargs=2, default=tt.get_dates(num=2, oldest=False), help='dates to compare, in format: YY-MM-DD YY-MM-DD')
 @click.option('--chant', is_flag=True, show_default=True, default=False, help='Sardaukar chant for any new attorneys. Or a quote.')
-def compare(dates, chant):
+@click.option('--pat', is_flag=True, show_default=True, default=False, help='Only compare patent attorneys.')
+@click.option('--tm', is_flag=True, show_default=True, default=False, help='Only compare TM attorneys.')
+def compare(dates, chant, pat, tm):
     """Compare previously scraped data from two different dates."""
-    tt.compare_data(dates, chant)
+    output = tt.compare_data(dates, chant, pat, tm)
+    click.echo(output)
 
 @cli.command()
 @click.option('--date', default=tt.get_latest_date(), help='date to rank name lengths')
@@ -32,13 +35,16 @@ def compare(dates, chant):
 @click.option('--chant', is_flag=True, show_default=True, default=False, help='Sardaukar chant for the attorneys with the longest names.')
 def names(date, num, chant):
     """Rank the longest names on the register."""
-    tt.rank_names(date, num, chant)
+    output = tt.rank_names(date, num, chant)
+    click.echo(output)
 
 @cli.command()
 @click.option('--num', default=tt.count_dates(), help='number of recent scraped dates to print')
-def dates(num):
+@click.option('--oldest', is_flag=True, show_default=True, default=False, help='list dates in reverse order')
+def dates(num, oldest):
     """Print the dates of previous scrapes."""
-    tt.print_dates(num)
+    output = tt.list_dates(num, oldest)
+    click.echo(output)
 
 @cli.command()
 @click.option('--date', default=tt.get_latest_date(), help='date to rank firms')
@@ -48,4 +54,5 @@ def dates(num):
 @click.option('--raw', is_flag=True, show_default=True, default=False, help='Use raw firm data without consolidation.')
 def firms(date, num, pat, tm, raw):
     """Print the dates of previous scrapes."""
-    tt.rank_firms(date, num, pat, tm, raw)
+    output = tt.rank_firms(date, num, pat, tm, raw)
+    click.echo(output)

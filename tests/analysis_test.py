@@ -27,10 +27,12 @@ def test_attorneys_df_to_lines(examples):
     assert analyser.attorneys_df_to_lines(examples[0]) == exampleLines
 
 def test_compare_csvs(examples):
-    df_newAttorneys, df_changedFirms = analyser.compare_dfs(examples[0], examples[1])
+    df_diffs = analyser.get_diffs_df(examples[0], examples[1])
+    df_newAttorneys = analyser.get_new_attorneys_df(df_diffs)
+    df_changedFirms = analyser.get_firmChanges_df(df_diffs)
     assert df_newAttorneys.iloc[0]['Name'] == "Albert Abram"
     assert df_changedFirms.iloc[0]['Name'] == "Daniel Bolderston" and df_changedFirms.iloc[0]['New firm'] == "AJ Park"
 
 
-def test_remove_tm_attorneys(examples):
-    assert analyser.remove_tm_attorneys(examples[0]).equals(examples[0][1:3])
+def test_filter_attorneys(examples):
+    assert analyser.filter_attorneys(examples[0], pat=True, tm=False).equals(examples[0][1:3])

@@ -6,7 +6,7 @@ import logging
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 
-MEDIA_FOLDER = rootFolderPath = Path(__file__).parents[2] / "media"
+MEDIA_FOLDER = rootFolderPath = Path(__file__).parents[0] / "media"
 logger = logging.getLogger(__name__)
 
 def get_random_quote(filepath: Path) -> str:
@@ -48,7 +48,6 @@ def perform_chant(lines: list[str]) -> None:
 
         screen.fill(pygame.Color('black'))
         pygame.display.flip()
-
 
 def fade_text(screen: pygame.Surface, line: str) -> None:
     """Uses pygame to fade a line of text in and back out with a fixed timing."""

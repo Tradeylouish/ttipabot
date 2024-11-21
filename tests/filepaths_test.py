@@ -25,16 +25,6 @@ def test_validate_date():
     with pytest.raises(Exception):
         assert analyser.validate_date("20-03-2023")
 
-def test_latest_csvs(paths: tuple[Path, Path]):
-    filepaths = paths[1]
-    # Order doesn't matter
-    assert sorted(analyser.get_latest_csvs(filepaths, 2)) == sorted(filepaths[-2:])
-
-def test_latest_csvs_single(paths: tuple[Path, Path]):
-    filepaths = paths[1]
-    #print(filepaths)
-    assert analyser.get_latest_csvs(filepaths, 1) == [filepaths[2]]
-
 def test_select_filepaths_for_dates(paths: tuple[Path, Path]):
     filepaths = paths[1]
     # Specifying dates that both have a file
@@ -59,4 +49,3 @@ def test_check_already_scraped(paths: tuple[Path, Path]):
     datePath = dirPath / f"{datetime.date.today()}.csv"
     datePath.touch()
     assert analyser.check_already_scraped(dirPath)
-
