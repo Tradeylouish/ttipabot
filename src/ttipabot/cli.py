@@ -18,7 +18,7 @@ def scrape(compare, ranknames):
     if ranknames: tt.rank_names(tt.get_latest_date(), num=10)
 
 @cli.command()
-@click.option('--dates', nargs=2, default=tt.get_dates(num=2, oldest=False), help='dates to compare, in format: YY-MM-DD YY-MM-DD')
+@click.option('--dates', nargs=2, default=tt.get_dates(num=2, oldest=False, changesOnly=True), help='dates to compare, in format: YY-MM-DD YY-MM-DD')
 @click.option('--raw', is_flag=True, show_default=True, default=False, help='Output a raw list instead of a formatted report.')
 @click.option('--pat', is_flag=True, show_default=True, default=False, help='Only compare patent attorneys.')
 @click.option('--tm', is_flag=True, show_default=True, default=False, help='Only compare TM attorneys.')
@@ -28,7 +28,7 @@ def registrations(dates, raw, pat, tm):
     click.echo(output)
     
 @cli.command()
-@click.option('--dates', nargs=2, default=tt.get_dates(num=2, oldest=False), help='dates to compare, in format: YY-MM-DD YY-MM-DD')
+@click.option('--dates', nargs=2, default=tt.get_dates(num=2, oldest=False, changesOnly=True), help='dates to compare, in format: YY-MM-DD YY-MM-DD')
 @click.option('--pat', is_flag=True, show_default=True, default=False, help='Only compare patent attorneys.')
 @click.option('--tm', is_flag=True, show_default=True, default=False, help='Only compare TM attorneys.')
 def movements(dates, pat, tm):

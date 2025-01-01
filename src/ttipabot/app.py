@@ -16,9 +16,9 @@ def scrape_register() -> None:
     else:
         print("Already scraped the register today.")
 
-def get_dates(num: int, oldest: bool = False) -> list[str]:
+def get_dates(num: int, oldest: bool = False, changesOnly: bool = False) -> list[str]:
     """Gets <num> dates from the newest or oldest existing csv filepaths."""
-    dates = scraper.get_dates(num, oldest)
+    dates = scraper.get_dates(num, oldest, changesOnly)
      # Blanks to allow cli default calls without errors when no files
     if len(dates) < 2 and num <= 2:
         diff = num-len(dates)
