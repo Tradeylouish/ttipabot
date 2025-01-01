@@ -44,7 +44,7 @@ def test_select_filepaths_for_dates_malformed(paths: tuple[Path, Path]):
 
 def test_clean_csvs(paths: tuple[Path, Path]):
     dirPath, filepaths = paths
-    scraper.clean_csvs(dirPath, recentOnly=False)
+    scraper.clean_csvs(recentOnly=False, dirPath=dirPath)
     assert scraper.get_csv_filepaths(dirPath) == [filepaths[0]]
     assert scraper.read_date_table(dirPath) == {"2023-06-10" : "2023-03-20", "2023-06-25" : "2023-03-20"}
 

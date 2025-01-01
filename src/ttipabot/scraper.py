@@ -19,7 +19,7 @@ def scrape_register() -> bool:
     data = parse_register(results)
     write_to_csv(data)
     # Avoid keeping sequences of multiple identical csvs, but record them in a table
-    clean_csvs(CSV_FOLDER, recentOnly=True)
+    clean_csvs(recentOnly=True, dirPath=CSV_FOLDER)
     return True
 
 def ttipab_request(count: int):
@@ -100,19 +100,21 @@ def append_to_date_table(dirPath: Path, dates: list[str]):
         
         f.write(f"{dates[0]} : {dates[1]}\n")
         
-def clean_csvs(dirPath: Path, recentOnly: bool):
+def clean_csvs(recentOnly: bool, dirPath: Path = CSV_FOLDER) -> int:
     filepaths = get_csv_filepaths(dirPath)
+    new_table_entries = 0
     i = 0
     if recentOnly:
         i = len(filepaths) - 2
     j = i + 1
     while True:
         if j == len(filepaths):
-            return
+            return new_table_entries
         csv1 = filepaths[i]
         csv2 = filepaths[j]
         if cmp(csv1, csv2, shallow=False):
             append_to_date_table(dirPath, filepaths_to_dates([csv2, csv1]))
+            new_table_entries += 1
             os.remove(csv2)
             j += 1
         else:

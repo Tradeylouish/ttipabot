@@ -26,18 +26,8 @@ def get_dates(num: int, oldest: bool = False, changesOnly: bool = False) -> list
     return dates
 
 def get_latest_date() -> str:
-    """Gets the latest date among all the existing csv filepaths."""
+    """Gets the latest date among all those available."""
     return get_dates(num=1)[0]
-
-def get_latest_change_dates() -> list[str]:
-    """Gets the latest two dates with data that's not identical."""
-    datelist = reversed(get_dates(num=count_dates()))
-    date1, date2 = datelist[0:1]
-    for date in datelist:
-        
-        if scraper.check_identical():
-            date2 = date
-    return [date1, date2]
 
 def count_dates() -> int:
     """Returns the total number of dates available."""
@@ -123,3 +113,8 @@ def rank_firms(date: str, num: int, pat: bool, tm: bool, raw: bool) -> str:
     df_firms = analyser.firm_rank_df(df, num, raw)
 
     return f"\nThe biggest {num} firms by attorney count as of {date} are:\n{df_firms[['Firm', 'Attorneys']].to_markdown()}"
+
+def cleanup() -> str:
+    csvs_deleted = scraper.clean_csvs(recentOnly=False)
+    if csvs_deleted > 0:
+        return f"Deleted {csvs_deleted} csv files and mapped to earlier dates."

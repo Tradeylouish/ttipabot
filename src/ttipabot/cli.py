@@ -63,3 +63,10 @@ def firms(date, num, pat, tm, raw):
     """Print the dates of previous scrapes."""
     output = tt.rank_firms(date, num, pat, tm, raw)
     click.echo(output)
+    
+@cli.command()
+def cleanup():
+    """Map duplicate scrapes to the earliest identical one and then delete."""
+    output = tt.cleanup()
+    click.echo(output)
+    
