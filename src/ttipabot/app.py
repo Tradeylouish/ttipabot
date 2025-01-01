@@ -9,44 +9,43 @@ from ttipabot import scraper, analyser
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename='ttipabot.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
-#TODO Refactor directory lookup to avoid using global
-CSV_FOLDER = Path(__file__).parents[0] / "scrapes"
-
 def scrape_register() -> None:
     """Scrapes the register, parses all the data, and writes it to a csv file."""
-    if analyser.check_already_scraped(CSV_FOLDER):
-        print("Already performed a scrape today.")
-        return
-    results = scraper.get_full_register()
-    data = scraper.parse_register(results)
-    scraper.write_to_csv(data, CSV_FOLDER)
-
-def get_dates(num: int, oldest: bool) -> list[str]:
-    """Gets <num> dates from the newest or oldest existing csv filepaths."""
-    csvFilepaths = analyser.get_csv_filepaths(CSV_FOLDER)
-    dates = [filepath.stem for filepath in csvFilepaths]
-    if oldest:
-        dates = sorted(dates)[:num]
+    if scraper.scrape_register(): 
+        print("Finished today's register scrape.")
     else:
-        dates = sorted(dates)[-num:]
-    # Blanks to allow cli default calls without errors
+        print("Already scraped the register today.")
+
+def get_dates(num: int, oldest: bool = False) -> list[str]:
+    """Gets <num> dates from the newest or oldest existing csv filepaths."""
+    dates = scraper.get_dates(num, oldest)
+     # Blanks to allow cli default calls without errors when no files
     if len(dates) < 2 and num <= 2:
         diff = num-len(dates)
         dates.extend(['']*diff)
-    
     return dates
 
 def get_latest_date() -> str:
     """Gets the latest date among all the existing csv filepaths."""
-    return get_dates(num=1, oldest=False)[0]
+    return get_dates(num=1)[0]
+
+def get_latest_change_dates() -> list[str]:
+    """Gets the latest two dates with data that's not identical."""
+    datelist = reversed(get_dates(num=count_dates()))
+    date1, date2 = datelist[0:1]
+    for date in datelist:
+        
+        if scraper.check_identical():
+            date2 = date
+    return [date1, date2]
 
 def count_dates() -> int:
-    return len(analyser.get_csv_filepaths(CSV_FOLDER))
+    """Returns the total number of dates available."""
+    return scraper.count_dates()
 
 def rank_names(date: str, num: int, report: bool) -> str:
     """Prints the <num> longest names on the register as of <date>."""
-    csvFilepaths = analyser.get_csv_filepaths(CSV_FOLDER)
-    csv = analyser.select_filepaths_for_dates(csvFilepaths, [date])[0]
+    csv = scraper.dates_to_filepaths([date])[0]
     df = analyser.csv_to_df(csv)
     df_names = analyser.name_rank_df(df, num)
 
@@ -79,8 +78,7 @@ def compare_movements(dates: tuple[str, str], pat: bool, tm: bool):
     return ""
 
 def compare_data(dates: list[str, str], pat: bool, tm: bool) -> str:    
-    csvFilepaths = analyser.get_csv_filepaths(CSV_FOLDER)
-    csv1, csv2 = analyser.select_filepaths_for_dates(csvFilepaths, dates)
+    csv1, csv2 = scraper.dates_to_filepaths(dates)
     df1, df2 = analyser.csvs_to_dfs([csv1, csv2])
 
     # Filter out attorneys not of interest before performing comparisons
@@ -118,8 +116,7 @@ def list_dates(num: int, oldest: bool) -> str:
 
 def rank_firms(date: str, num: int, pat: bool, tm: bool, raw: bool) -> str:
     """Prints the <num> biggest firms (by attorney count) on the register as of <date>."""
-    csvFilepaths = analyser.get_csv_filepaths(CSV_FOLDER)
-    csv = analyser.select_filepaths_for_dates(csvFilepaths, [date])[0]
+    csv = scraper.dates_to_filepaths([date])[0]
     df = analyser.csv_to_df(csv)
 
     df = analyser.filter_attorneys(df, pat, tm)

@@ -1,5 +1,5 @@
 import pytest
-from ttipabot import analyser
+from ttipabot import scraper
 from pathlib import Path
 import datetime
 
@@ -11,41 +11,55 @@ def paths(tmp_path_factory) -> tuple[Path, Path]:
     for filepath in filepaths:
         filepath.touch()
     # Add a non-csv file to directory
-    txtPath = d / 'garbage.txt'
+    txtPath = d / 'date_table.txt'
     txtPath.write_text('')
     return (d, filepaths)
 
 def test_get_csv_filepaths(paths: tuple[Path, Path]):
     (dirPath, filepaths) = paths
     # Should be time-ordered
-    assert analyser.get_csv_filepaths(dirPath) == sorted(filepaths)
+    assert scraper.get_csv_filepaths(dirPath) == sorted(filepaths)
 
 def test_validate_date():
-    analyser.validate_date("2023-03-20")
+    scraper.validate_date("2023-03-20")
     with pytest.raises(Exception):
-        assert analyser.validate_date("20-03-2023")
+        assert scraper.validate_date("20-03-2023")
 
 def test_select_filepaths_for_dates(paths: tuple[Path, Path]):
     filepaths = paths[1]
     # Specifying dates that both have a file
-    assert analyser.select_filepaths_for_dates(filepaths, ["2023-03-20", "2023-06-25"]) == [filepaths[0], filepaths[2]]
+    assert scraper.select_filepaths_for_dates(filepaths, ["2023-03-20", "2023-06-25"]) == [filepaths[0], filepaths[2]]
 
 def test_select_filepaths_for_dates_nonexistent(paths: tuple[Path, Path]):
     filepaths = paths[1]
     # Trying to specify a date that doesn't have a file
     with pytest.raises(ValueError,  match="No file exists for 2099-06-25"):
-        analyser.select_filepaths_for_dates(filepaths, ["2023-03-20", "2099-06-25"]) == [filepaths[0], None]
+        scraper.select_filepaths_for_dates(filepaths, ["2023-03-20", "2099-06-25"]) == [filepaths[0], None]
 
 def test_select_filepaths_for_dates_malformed(paths: tuple[Path, Path]):
     filepaths = paths[1]
     # Entering a string that is not a date
     with pytest.raises(ValueError, match="Missing or incorrectly formatted date, should be YYYY-MM-DD"):
-        analyser.select_filepaths_for_dates(filepaths, ["garbage", "garbage"])
+        scraper.select_filepaths_for_dates(filepaths, ["garbage", "garbage"])
+
+def test_clean_csvs(paths: tuple[Path, Path]):
+    dirPath = paths[0]
+    filepaths = paths[1]
+    scraper.clean_csvs(dirPath, recentOnly=False)
+    assert scraper.get_csv_filepaths(dirPath) == [filepaths[0]]
+    assert scraper.read_date_table(dirPath) == {"2023-06-10" : "2023-03-20", "2023-06-25" : "2023-03-20"}
 
 def test_check_already_scraped(paths: tuple[Path, Path]):
     dirPath = paths[0]
-    assert not analyser.check_already_scraped(dirPath)
+    assert not scraper.check_already_scraped(dirPath)
     # Add a file with today's date
     datePath = dirPath / f"{datetime.date.today()}.csv"
     datePath.touch()
-    assert analyser.check_already_scraped(dirPath)
+    assert scraper.check_already_scraped(dirPath)
+    
+def test_check_already_scraped_table(paths: tuple[Path, Path]):
+    dirPath = paths[0]
+    # Add a line to the date table
+    scraper.append_to_date_table(dirPath, [datetime.date.today(), "2024-10-26"])
+    assert scraper.check_already_scraped(dirPath)
+    

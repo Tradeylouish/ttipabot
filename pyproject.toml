@@ -33,4 +33,3 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "ttipabot.scrapes" = ["*.csv"]
-"ttipabot.media" = ["*.txt", "*.mp3", "*.otf"]

@@ -3,30 +3,6 @@ from pathlib import Path
 import pandas as pd
 from typing import NamedTuple, Iterable
 
-def get_csv_filepaths(dirPath: Path) -> list[Path]:
-    """Returns a list of filepaths to all the csv files in time order."""
-    # ISO naming format means default sort will time-order
-    return sorted(list(dirPath.glob('*.csv')))
-
-def validate_date(date: str) -> None:
-    """Raises an error if <date> is not in ISO format."""
-    try:
-        datetime.date.fromisoformat(date)
-    except ValueError:
-        raise ValueError("Missing or incorrectly formatted date, should be YYYY-MM-DD")
-
-def select_filepaths_for_dates(filepaths: list[Path], dates: list[str]) -> list[Path]:
-    """Returns a list of paths to files with names matching input dates."""
-    datePaths=[]
-    for date in dates:
-        validate_date(date)
-        datePath = next((path for path in filepaths if date in str(path)), None)
-        if datePath == None: 
-            raise ValueError(f"No file exists for {date}")
-        datePaths.append(datePath)
-
-    return datePaths
-
 def csv_to_df(csvPath: Path) -> pd.DataFrame:
     """Converts a csv to a dataframe"""
     return pd.read_csv(csvPath, dtype='string').fillna('')
@@ -149,9 +125,3 @@ def firm_rank_df(df: pd.DataFrame, num: int, raw: bool) -> pd.DataFrame:
 def attorneys_df_to_lines(attorneys_df: pd.DataFrame) -> list[str]:
     """Convert a dataframe of attorneys to a list of strings to act as lines for display."""
     return [f"{attorney.Name}." if attorney.Firm == '' else f"{attorney.Name} of {attorney.Firm}." for attorney in attorneys_df.itertuples()]
-
-def check_already_scraped(dirPath: Path) -> bool:
-    filepaths = get_csv_filepaths(dirPath)
-    latestFilepath = filepaths[-1]
-    date = str(datetime.date.today())
-    return date == latestFilepath.stem
