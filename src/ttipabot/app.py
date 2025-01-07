@@ -9,12 +9,9 @@ from ttipabot import scraper, analyser
 logger = logging.getLogger(__name__)
 logging.basicConfig(filename='ttipabot.log', encoding='utf-8', format='%(asctime)s %(message)s', level=logging.DEBUG)
 
-def scrape_register() -> None:
+def scrape_register() -> bool:
     """Scrapes the register, parses all the data, and writes it to a csv file."""
-    if scraper.scrape_register(): 
-        print("Finished today's register scrape.")
-    else:
-        print("Already scraped the register today.")
+    return scraper.scrape_register()
 
 def get_dates(num: int, oldest: bool = False, changesOnly: bool = False) -> list[str]:
     """Gets <num> dates from the newest or oldest existing csv filepaths."""
@@ -33,29 +30,28 @@ def count_dates() -> int:
     """Returns the total number of dates available."""
     return scraper.count_dates()
 
-def rank_names(date: str, num: int, report: bool) -> str:
+def rank_names(date: str, num: int, markdown: bool) -> str:
     """Prints the <num> longest names on the register as of <date>."""
     csv = scraper.dates_to_filepaths([date])[0]
     df = analyser.csv_to_df(csv)
     df_names = analyser.name_rank_df(df, num)
 
-    if report:
-        return f"\nThe top {num} names by length as of {date} are:\n{df_names[['Name', 'Length']].to_markdown()}"
+    if markdown:
+        return df_names[['Name', 'Length']].to_markdown()
     # Raw list of names
     return analyser.attorneys_df_to_lines(df_names)
 
-def compare_registrations(dates: tuple[str, str], raw: bool, pat: bool, tm: bool):
+def compare_registrations(dates: tuple[str, str], markdown: bool, pat: bool, tm: bool):
     dates = sorted(list(dates))
     diffs_df = compare_data(dates, pat, tm)
     newAttorneys_df = analyser.get_new_attorneys_df(diffs_df)
     
     # Raw list of names
-    if raw: 
+    if not markdown: 
         return analyser.attorneys_df_to_lines(newAttorneys_df)
     
     if not newAttorneys_df.empty: 
-        attorney_type = describe_attorney_filter(pat, tm)
-        return f"\nCongratulations to the new {attorney_type} attorneys registered between {dates[0]} and {dates[1]}:\n{newAttorneys_df.to_markdown()}\n"
+        return newAttorneys_df.to_markdown()
     return ""
 
 def compare_movements(dates: tuple[str, str], pat: bool, tm: bool):
@@ -63,8 +59,7 @@ def compare_movements(dates: tuple[str, str], pat: bool, tm: bool):
     diffs_df = compare_data(dates, pat, tm)
     firmChanges_df = analyser.get_firmChanges_df(diffs_df)
     if not firmChanges_df.empty: 
-        attorney_type = describe_attorney_filter(pat, tm)
-        return f"The following {attorney_type} attorneys changed firms between {dates[0]} and {dates[1]}:\n{firmChanges_df.to_markdown()}\n"
+        return firmChanges_df.to_markdown()
     return ""
 
 def compare_data(dates: list[str, str], pat: bool, tm: bool) -> str:    
@@ -94,15 +89,7 @@ def describe_attorney_filter(pat, tm):
         attorney_type = "patent"
     elif tm:
         attorney_type = "trade mark"
-    return attorney_type 
-
-def list_dates(num: int, oldest: bool) -> str:
-    """List <num> latest dates available."""
-    output = f"Available dates ({min(num, count_dates())}):"
-    #TODO prettify layout with columns or grid for large numbers
-    for date in get_dates(num, oldest):
-        output += f"\n{date}"
-    return output
+    return attorney_type
 
 def rank_firms(date: str, num: int, pat: bool, tm: bool, raw: bool) -> str:
     """Prints the <num> biggest firms (by attorney count) on the register as of <date>."""
@@ -112,9 +99,9 @@ def rank_firms(date: str, num: int, pat: bool, tm: bool, raw: bool) -> str:
     df = analyser.filter_attorneys(df, pat, tm)
     df_firms = analyser.firm_rank_df(df, num, raw)
 
-    return f"\nThe biggest {num} firms by attorney count as of {date} are:\n{df_firms[['Firm', 'Attorneys']].to_markdown()}"
+    return df_firms[['Firm', 'Attorneys']].to_markdown()
 
-def cleanup() -> str:
-    csvs_deleted = scraper.clean_csvs(recentOnly=False)
-    if csvs_deleted > 0:
-        return f"Deleted {csvs_deleted} csv files and mapped to earlier dates."
+def cleanup() -> int:
+    """Cleans up duplicate csv files by mapping dupes to earlier dates, and returns the number of csvs cleaned."""
+    return scraper.clean_csvs(recentOnly=False)
+    
