@@ -3,6 +3,21 @@ from pathlib import Path
 import pandas as pd
 from typing import NamedTuple, Iterable
 
+def compare_data(csv1: Path, csv2: Path, pat: bool, tm: bool, mode: str = 'registrations') -> pd.DataFrame:    
+    df1, df2 = csvs_to_dfs([csv1, csv2])
+    # Filter out attorneys not of interest before performing comparisons
+    df1 = filter_attorneys(df1, pat, tm)
+    df2 = filter_attorneys(df2, pat, tm)
+    diffs_df = get_diffs_df(df1, df2)
+    
+    if mode == 'registrations':
+        return get_new_attorneys_df(diffs_df)
+    elif mode == 'movements':
+        return get_firmChanges_df(diffs_df)
+    elif mode == 'lapses':
+        return get_lapsed_df(diffs_df)
+    raise ValueError("Invalid comparison mode.")
+
 def csv_to_df(csvPath: Path) -> pd.DataFrame:
     """Converts a csv to a dataframe"""
     return pd.read_csv(csvPath, dtype='string').fillna('')
@@ -47,6 +62,9 @@ def get_firmChanges_df(df_diffs: pd.DataFrame) -> pd.DataFrame:
 
 def get_lapsed_df(df_diffs: pd.DataFrame):
     df_lapsedAttorneys = df_diffs.query("NameExist == 'left_only'")
+    df_lapsedAttorneys = df_lapsedAttorneys[['Name', 'Firm_x']].fillna('')
+    df_lapsedAttorneys = df_lapsedAttorneys.rename(columns={"Firm_x": "Firm"}).reset_index(drop=True)
+    df_lapsedAttorneys.index += 1
     return df_lapsedAttorneys
 
 def name_rank_df(df: pd.DataFrame, num: int) -> pd.DataFrame:

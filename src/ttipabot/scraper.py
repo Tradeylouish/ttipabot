@@ -169,14 +169,16 @@ def read_date_table(dirPath: Path) -> dict[str:str]:
      
 def check_already_scraped(dirPath: Path) -> bool:
     date = str(datetime.date.today())
-    return (date in get_dates(num=1, dirPath=dirPath)) or (date in read_date_table(dirPath))
+    # Check dates from both the csvs and the date table
+    return date in get_dates(num=count_dates(dirPath), dirPath=dirPath)
 
-def get_dates(num: int, oldest: bool = False, changesOnly=False, dirPath: Path = CSV_FOLDER) -> list[str]:
-    """Gets <num> dates from the newest or oldest existing csv filepaths."""
+def get_dates(num: int, oldest: bool = False, changes_only: bool = False, dirPath: Path = CSV_FOLDER) -> list[str]:
+    """Gets <num> dates from among those with available scrapes."""
     filepaths = get_csv_filepaths(dirPath)
     dates = filepaths_to_dates(filepaths)
     dates_from_table = list(read_date_table(dirPath).keys())
-    if not changesOnly:
+    # Can skip the dates in the date table if getting only dates with changed data
+    if not changes_only:
         dates += dates_from_table
     
     if oldest:
@@ -185,5 +187,9 @@ def get_dates(num: int, oldest: bool = False, changesOnly=False, dirPath: Path =
         dates = sorted(dates)[-num:]
     return dates
 
-def count_dates(dirPath: Path = CSV_FOLDER) -> int:
-    return len(get_csv_filepaths(dirPath)) + len(read_date_table(dirPath).keys())
+def count_dates(dirPath: Path = CSV_FOLDER, changes_only=False) -> int:
+    count = len(get_csv_filepaths(dirPath))
+    # Can skip the dates in the date table if counting only dates with changed data
+    if changes_only:
+        return count 
+    return count + len(read_date_table(dirPath).keys())

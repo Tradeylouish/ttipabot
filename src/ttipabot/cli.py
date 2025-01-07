@@ -1,4 +1,4 @@
-from ttipabot import app as tt
+import ttipabot as tt
 import click
 
 # Thin wrappers for cli commands
@@ -15,20 +15,23 @@ def scrape():
     else:
         click.echo("Already scraped the register today.")
 
-dates_option = click.option('--dates', nargs=2, default=tt.get_dates(num=2, oldest=False, changesOnly=True), help='dates to compare, in format: YY-MM-DD YY-MM-DD')
+# Define some options shared between commands
+dates_option = click.option('-d', '--dates', nargs=2, default=tt.get_dates(num=2, oldest=False, changesOnly=True), help='Dates to compare, in format: YY-MM-DD YY-MM-DD')
+date_option = click.option('-d', '--date', default=tt.get_latest_date(), help='Date to do ranking on.')
 markdown_option = click.option('--markdown / --no-markdown', default=True, show_default=True)
 pat_option = click.option('--pat', is_flag=True, show_default=True, default=False, help='Filter by patent attorneys.')
 tm_option = click.option('--tm', is_flag=True, show_default=True, default=False, help='Filter by TM attorneys.')
+num_option = click.option('-n', '--num', default=10, help='Number of places in ranking.')
 
 @cli.command()
 @dates_option
 @markdown_option
 @pat_option
 @tm_option 
-def registrations(dates, markdown, pat, tm):
+def regos(dates, markdown, pat, tm):
     """Show new attorney registrations."""
     dates = sorted(dates)
-    output = tt.compare_registrations(dates, markdown, pat, tm)
+    output = tt.compare_data(dates, pat, tm, mode='registrations', markdown=markdown)
     click.echo(f"Congratulations to the new {tt.describe_attorney_filter(pat, tm)} attorneys registered between {dates[0]} and {dates[1]}:")
     # TODO Refactor to avoid multiple return types from compare_registrations
     if markdown:
@@ -44,12 +47,22 @@ def registrations(dates, markdown, pat, tm):
 def moves(dates, pat, tm):
     """Show movements of attorneys between firms."""
     dates = sorted(dates)
-    output = tt.compare_movements(dates, pat, tm)
+    output = tt.compare_data(dates, pat, tm, mode='movements')
     click.echo(f"The following {tt.describe_attorney_filter(pat, tm)} attorneys changed firms between {dates[0]} and {dates[1]}:\n{output}")
+    
+@cli.command()
+@dates_option
+@pat_option
+@tm_option
+def lapses(dates, pat, tm):
+    """Show attorneys that let their registration lapse."""
+    dates = sorted(dates)
+    output = tt.compare_data(dates, pat, tm, mode='lapses')
+    click.echo(f"The following {tt.describe_attorney_filter(pat, tm)} attorneys had their registrations lapse between {dates[0]} and {dates[1]}:\n{output}")
 
 @cli.command()
-@click.option('--date', default=tt.get_latest_date(), help='date to rank name lengths')
-@click.option('--num', default=10, help='number of names in top ranking')
+@date_option
+@num_option
 @markdown_option
 def names(date, num, markdown):
     """Rank the longest names on the register."""
@@ -63,17 +76,19 @@ def names(date, num, markdown):
             click.echo(attorney)
 
 @cli.command()
-@click.option('--num', default=tt.count_dates(), help='number of recent scraped dates to print')
+@click.option('-n', '--num', default=tt.count_dates(), help='number of recent scraped dates to print')
 @click.option('--oldest/--newest', default=False, show_default=True)
 def dates(num, oldest):
     """Show dates with scraped data available."""
-    click.echo(f"Listing {num} / {tt.count_dates()} dates available:")
-    for date in tt.get_dates(num, oldest):
+    click.echo(f"Listing {num} {"oldest" if oldest else "newest"} dates out of {tt.count_dates()} dates available:")
+    dates = tt.get_dates(num, oldest)
+    # Order the dates so the newest/oldest one is easily visible at the bottom
+    for date in reversed(dates) if oldest else dates:
         click.echo(date)
 
 @cli.command()
-@click.option('--date', default=tt.get_latest_date(), help='date to rank firms')
-@click.option('--num', default=10, help='number of firms in top ranking')
+@date_option
+@num_option
 @pat_option
 @tm_option
 @click.option('--raw', is_flag=True, show_default=True, default=False, help='Use raw firm data without consolidation.')

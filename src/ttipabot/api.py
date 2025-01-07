@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-
 import pandas as pd
 
 # Custom modules
@@ -14,9 +13,9 @@ def scrape_register() -> bool:
     return scraper.scrape_register()
 
 def get_dates(num: int, oldest: bool = False, changesOnly: bool = False) -> list[str]:
-    """Gets <num> dates from the newest or oldest existing csv filepaths."""
+    """Gets <num> dates from among those with available scrapes, and pads with blanks up to a date pair."""
     dates = scraper.get_dates(num, oldest, changesOnly)
-     # Blanks to allow cli default calls without errors when no files
+    # Blanks to allow cli default calls without errors when there's no scrapes
     if len(dates) < 2 and num <= 2:
         diff = num-len(dates)
         dates.extend(['']*diff)
@@ -26,9 +25,9 @@ def get_latest_date() -> str:
     """Gets the latest date among all those available."""
     return get_dates(num=1)[0]
 
-def count_dates() -> int:
+def count_dates(changes_only=False) -> int:
     """Returns the total number of dates available."""
-    return scraper.count_dates()
+    return scraper.count_dates(changes_only=False)
 
 def rank_names(date: str, num: int, markdown: bool) -> str:
     """Prints the <num> longest names on the register as of <date>."""
@@ -41,45 +40,19 @@ def rank_names(date: str, num: int, markdown: bool) -> str:
     # Raw list of names
     return analyser.attorneys_df_to_lines(df_names)
 
-def compare_registrations(dates: tuple[str, str], markdown: bool, pat: bool, tm: bool):
+def compare_data(dates: tuple[str, str], pat: bool, tm: bool, mode: str, markdown: bool = True) -> list[str] |  str:
     dates = sorted(list(dates))
-    diffs_df = compare_data(dates, pat, tm)
-    newAttorneys_df = analyser.get_new_attorneys_df(diffs_df)
+    csv1, csv2 = scraper.dates_to_filepaths(dates)
+    logger.debug(f"Comparing dates {dates[0]} and {dates[1]}")
+    comparison_df = analyser.compare_data(csv1, csv2, pat, tm, mode)
     
     # Raw list of names
     if not markdown: 
-        return analyser.attorneys_df_to_lines(newAttorneys_df)
+        return analyser.attorneys_df_to_lines(comparison_df)
     
-    if not newAttorneys_df.empty: 
-        return newAttorneys_df.to_markdown()
+    if not comparison_df.empty: 
+        return comparison_df.to_markdown()
     return ""
-
-def compare_movements(dates: tuple[str, str], pat: bool, tm: bool):
-    dates = sorted(list(dates))
-    diffs_df = compare_data(dates, pat, tm)
-    firmChanges_df = analyser.get_firmChanges_df(diffs_df)
-    if not firmChanges_df.empty: 
-        return firmChanges_df.to_markdown()
-    return ""
-
-def compare_data(dates: list[str, str], pat: bool, tm: bool) -> str:    
-    csv1, csv2 = scraper.dates_to_filepaths(dates)
-    df1, df2 = analyser.csvs_to_dfs([csv1, csv2])
-
-    # Filter out attorneys not of interest before performing comparisons
-    df1 = analyser.filter_attorneys(df1, pat, tm)
-    df2 = analyser.filter_attorneys(df2, pat, tm)
-
-    logger.debug(f"Comparing dates {dates[0]} and {dates[1]}")
-
-    try:
-        diffs_df = analyser.get_diffs_df(df1, df2)
-
-    except Exception as ex:
-        logger.error(f"Error comparing data, possibly anomaly in register.", exc_info= ex)
-        # Create empty data frame to stand in
-        diffs_df = pd.DataFrame([])
-    return diffs_df
 
 def describe_attorney_filter(pat, tm):
     attorney_type = "IP"
