@@ -4,6 +4,7 @@ import pandas as pd
 from typing import NamedTuple, Iterable
 
 def compare_data(csv1: Path, csv2: Path, pat: bool, tm: bool, mode: str = 'registrations') -> pd.DataFrame:    
+    """Returns a dataframe with comparison data from to csv filepaths."""
     df1, df2 = csvs_to_dfs([csv1, csv2])
     # Filter out attorneys not of interest before performing comparisons
     df1 = filter_attorneys(df1, pat, tm)
@@ -16,6 +17,17 @@ def compare_data(csv1: Path, csv2: Path, pat: bool, tm: bool, mode: str = 'regis
         return get_firmChanges_df(diffs_df)
     elif mode == 'lapses':
         return get_lapsed_df(diffs_df)
+    raise ValueError("Invalid comparison mode.")
+
+def rank_data(csv: Path, num: int, pat: bool, tm: bool, mode: str = 'names', raw: bool = False):
+    df = csv_to_df(csv)
+    # Filter out attorneys not of interest before performing comparisons
+    df = filter_attorneys(df, pat, tm)
+    
+    if mode == 'names':
+        return name_rank_df(df, num)[['Name', 'Length']]
+    elif mode == 'firms':
+        return firm_rank_df(df, num, raw)[['Firm', 'Attorneys']]
     raise ValueError("Invalid comparison mode.")
 
 def csv_to_df(csvPath: Path) -> pd.DataFrame:
@@ -127,7 +139,7 @@ def consolidate_firms(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-def firm_rank_df(df: pd.DataFrame, num: int, raw: bool) -> pd.DataFrame:
+def firm_rank_df(df: pd.DataFrame, num: int, raw: bool = False) -> pd.DataFrame:
     """Make a dataframe of <num> rows representing firms ranked by attorney count"""
     
     if not raw:

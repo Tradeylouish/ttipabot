@@ -29,18 +29,11 @@ def count_dates(changes_only=False) -> int:
     """Returns the total number of dates available."""
     return scraper.count_dates(changes_only=False)
 
-def rank_names(date: str, num: int, markdown: bool) -> str:
-    """Prints the <num> longest names on the register as of <date>."""
-    csv = scraper.dates_to_filepaths([date])[0]
-    df = analyser.csv_to_df(csv)
-    df_names = analyser.name_rank_df(df, num)
-
-    if markdown:
-        return df_names[['Name', 'Length']].to_markdown()
-    # Raw list of names
-    return analyser.attorneys_df_to_lines(df_names)
-
 def compare_data(dates: tuple[str, str], pat: bool, tm: bool, mode: str, markdown: bool = True) -> list[str] |  str:
+    """Compares scraped data between two different dates according to a specified mode from among the following:
+    registrations
+    movements
+    lapses"""
     dates = sorted(list(dates))
     csv1, csv2 = scraper.dates_to_filepaths(dates)
     logger.debug(f"Comparing dates {dates[0]} and {dates[1]}")
@@ -54,25 +47,13 @@ def compare_data(dates: tuple[str, str], pat: bool, tm: bool, mode: str, markdow
         return comparison_df.to_markdown()
     return ""
 
-def describe_attorney_filter(pat, tm):
-    attorney_type = "IP"
-    if pat and tm:
-        attorney_type = "dual-registered"
-    elif pat:
-        attorney_type = "patent"
-    elif tm:
-        attorney_type = "trade mark"
-    return attorney_type
-
-def rank_firms(date: str, num: int, pat: bool, tm: bool, raw: bool) -> str:
-    """Prints the <num> biggest firms (by attorney count) on the register as of <date>."""
+def rank_data(date: str, num: int, pat: bool, tm: bool, mode: str, markdown: bool=True, raw: bool = False) -> str:
     csv = scraper.dates_to_filepaths([date])[0]
-    df = analyser.csv_to_df(csv)
-
-    df = analyser.filter_attorneys(df, pat, tm)
-    df_firms = analyser.firm_rank_df(df, num, raw)
-
-    return df_firms[['Firm', 'Attorneys']].to_markdown()
+    ranking_df = analyser.rank_data(csv, num, pat, tm, mode, raw)
+    if markdown:
+        return ranking_df.to_markdown()
+    # TODO Implement no markdown version
+    return ""
 
 def cleanup() -> int:
     """Cleans up duplicate csv files by mapping dupes to earlier dates, and returns the number of csvs cleaned."""

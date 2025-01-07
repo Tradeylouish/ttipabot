@@ -23,6 +23,17 @@ pat_option = click.option('--pat', is_flag=True, show_default=True, default=Fals
 tm_option = click.option('--tm', is_flag=True, show_default=True, default=False, help='Filter by TM attorneys.')
 num_option = click.option('-n', '--num', default=10, help='Number of places in ranking.')
 
+# For use with filtering options
+def describe_attorney_filter(pat, tm):
+    if pat and tm:
+        return "dual-registered"
+    elif pat:
+        return "patent"
+    elif tm:
+        return "trade mark"
+    else:
+        return "IP"
+
 @cli.command()
 @dates_option
 @markdown_option
@@ -32,7 +43,7 @@ def regos(dates, markdown, pat, tm):
     """Show new attorney registrations."""
     dates = sorted(dates)
     output = tt.compare_data(dates, pat, tm, mode='registrations', markdown=markdown)
-    click.echo(f"Congratulations to the new {tt.describe_attorney_filter(pat, tm)} attorneys registered between {dates[0]} and {dates[1]}:")
+    click.echo(f"Congratulations to the new {describe_attorney_filter(pat, tm)} attorneys registered between {dates[0]} and {dates[1]}:")
     # TODO Refactor to avoid multiple return types from compare_registrations
     if markdown:
        click.echo(output)
@@ -48,7 +59,7 @@ def moves(dates, pat, tm):
     """Show movements of attorneys between firms."""
     dates = sorted(dates)
     output = tt.compare_data(dates, pat, tm, mode='movements')
-    click.echo(f"The following {tt.describe_attorney_filter(pat, tm)} attorneys changed firms between {dates[0]} and {dates[1]}:\n{output}")
+    click.echo(f"The following {describe_attorney_filter(pat, tm)} attorneys changed firms between {dates[0]} and {dates[1]}:\n{output}")
     
 @cli.command()
 @dates_option
@@ -58,15 +69,17 @@ def lapses(dates, pat, tm):
     """Show attorneys that let their registration lapse."""
     dates = sorted(dates)
     output = tt.compare_data(dates, pat, tm, mode='lapses')
-    click.echo(f"The following {tt.describe_attorney_filter(pat, tm)} attorneys had their registrations lapse between {dates[0]} and {dates[1]}:\n{output}")
+    click.echo(f"The following {describe_attorney_filter(pat, tm)} attorneys had their registrations lapse between {dates[0]} and {dates[1]}:\n{output}")
 
 @cli.command()
 @date_option
 @num_option
 @markdown_option
-def names(date, num, markdown):
+@pat_option
+@tm_option 
+def names(date, num, markdown, pat, tm):
     """Rank the longest names on the register."""
-    output = tt.rank_names(date, num, markdown)
+    output = tt.rank_data(date, num, pat, tm,  mode='names', markdown=markdown)
     click.echo(f"The top {num} names by length as of {date} are:")
     # TODO Refactor to avoid multiple return types from rank_names
     if markdown:
@@ -94,9 +107,9 @@ def dates(num, oldest):
 @click.option('--raw', is_flag=True, show_default=True, default=False, help='Use raw firm data without consolidation.')
 def firms(date, num, pat, tm, raw):
     """Print the dates of previous scrapes."""
-    output = tt.rank_firms(date, num, pat, tm, raw)
+    output = output = tt.rank_data(date, num, pat, tm,  mode='firms', raw=raw)
     click.echo(f"The biggest {num} firms by attorney count as of {date} are:\n{output}")
-    
+
 @cli.command()
 def cleanup():
     """Clean up duplicate scrapes."""
