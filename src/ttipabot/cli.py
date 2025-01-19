@@ -97,10 +97,9 @@ def dates(num, oldest):
 @num_option
 @pat_option
 @tm_option
-@click.option('--raw', is_flag=True, show_default=True, default=False, help='Use raw firm data without consolidation.')
-def firms(date, num, pat, tm, raw):
+def firms(date, num, pat, tm):
     """Print the dates of previous scrapes."""
-    output = output = tt.rank_data(date, num, pat, tm,  mode='firms', raw=raw)
+    output = output = tt.rank_data(date, num, pat, tm,  mode='firms')
     click.echo(f"The biggest {num} firms by attorney count as of {date} are:\n{output}")
 
 @cli.command()

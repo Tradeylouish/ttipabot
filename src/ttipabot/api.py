@@ -47,9 +47,9 @@ def compare_data(dates: tuple[str, str], pat: bool, tm: bool, mode: str, json: b
     return comparison_df.to_markdown()
     
 
-def rank_data(date: str, num: int, pat: bool, tm: bool, mode: str, json: bool=False, raw: bool = False) -> str:
+def rank_data(date: str, num: int, pat: bool, tm: bool, mode: str, json: bool=False) -> str:
     csv = scraper.dates_to_filepaths([date])[0]
-    ranking_df = analyser.rank_data(csv, num, pat, tm, mode, raw)
+    ranking_df = analyser.rank_data(csv, num, pat, tm, mode)
     if json:
         return ranking_df.to_json(orient = "records")
     return ranking_df.to_markdown()

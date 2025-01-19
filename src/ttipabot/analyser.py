@@ -19,7 +19,7 @@ def compare_data(csv1: Path, csv2: Path, pat: bool, tm: bool, mode: str = 'regis
         return get_lapsed_df(diffs_df)
     raise ValueError("Invalid comparison mode.")
 
-def rank_data(csv: Path, num: int, pat: bool, tm: bool, mode: str = 'names', raw: bool = False):
+def rank_data(csv: Path, num: int, pat: bool, tm: bool, mode: str = 'names'):
     df = csv_to_df(csv)
     # Filter out attorneys not of interest before performing comparisons
     df = filter_attorneys(df, pat, tm)
@@ -27,7 +27,7 @@ def rank_data(csv: Path, num: int, pat: bool, tm: bool, mode: str = 'names', raw
     if mode == 'names':
         return name_rank_df(df, num)[['Name', 'Length']]
     elif mode == 'firms':
-        return firm_rank_df(df, num, raw)[['Firm', 'Attorneys']]
+        return firm_rank_df(df, num)[['Firm', 'Attorneys']]
     raise ValueError("Invalid ranking mode.")
 
 def csv_to_df(csvPath: Path) -> pd.DataFrame:
@@ -139,11 +139,10 @@ def consolidate_firms(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-def firm_rank_df(df: pd.DataFrame, num: int, raw: bool = False) -> pd.DataFrame:
+def firm_rank_df(df: pd.DataFrame, num: int) -> pd.DataFrame:
     """Make a dataframe of <num> rows representing firms ranked by attorney count"""
-    
-    if not raw:
-        df = consolidate_firms(df)
+
+    df = consolidate_firms(df)
     
     firm_df = df['Firm'].value_counts().to_frame()
     firm_df.reset_index(inplace=True)
