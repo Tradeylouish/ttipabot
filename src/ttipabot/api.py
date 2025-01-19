@@ -29,7 +29,7 @@ def count_dates(changes_only=False) -> int:
     """Returns the total number of dates available."""
     return scraper.count_dates(changes_only=False)
 
-def compare_data(dates: tuple[str, str], pat: bool, tm: bool, mode: str, markdown: bool = True) -> list[str] |  str:
+def compare_data(dates: tuple[str, str], pat: bool, tm: bool, mode: str, json: bool = False) -> str:
     """Compares scraped data between two different dates according to a specified mode from among the following:
     registrations
     movements
@@ -39,21 +39,20 @@ def compare_data(dates: tuple[str, str], pat: bool, tm: bool, mode: str, markdow
     logger.debug(f"Comparing dates {dates[0]} and {dates[1]}")
     comparison_df = analyser.compare_data(csv1, csv2, pat, tm, mode)
     
-    # Raw list of names
-    if not markdown: 
-        return analyser.attorneys_df_to_lines(comparison_df)
+    if json: 
+        return comparison_df.to_json(orient = "records")
+    # If there's no results, output empty string instead of the headers
+    if comparison_df.empty: 
+        return ""
+    return comparison_df.to_markdown()
     
-    if not comparison_df.empty: 
-        return comparison_df.to_markdown()
-    return ""
 
-def rank_data(date: str, num: int, pat: bool, tm: bool, mode: str, markdown: bool=True, raw: bool = False) -> str:
+def rank_data(date: str, num: int, pat: bool, tm: bool, mode: str, json: bool=False, raw: bool = False) -> str:
     csv = scraper.dates_to_filepaths([date])[0]
     ranking_df = analyser.rank_data(csv, num, pat, tm, mode, raw)
-    if markdown:
-        return ranking_df.to_markdown()
-    # TODO Implement no markdown version
-    return ""
+    if json:
+        return ranking_df.to_json(orient = "records")
+    return ranking_df.to_markdown()
 
 def cleanup() -> int:
     """Cleans up duplicate csv files by mapping dupes to earlier dates, and returns the number of csvs cleaned."""

@@ -18,7 +18,7 @@ def scrape():
 # Define some options shared between commands
 dates_option = click.option('-d', '--dates', nargs=2, default=tt.get_dates(num=2, oldest=False, changesOnly=True), help='Dates to compare, in format: YY-MM-DD YY-MM-DD')
 date_option = click.option('-d', '--date', default=tt.get_latest_date(), help='Date to do ranking on.')
-markdown_option = click.option('--markdown / --no-markdown', default=True, show_default=True)
+json_option = click.option('--json', is_flag=True, default=False, show_default=True, help='Output in JSON format.')
 pat_option = click.option('--pat', is_flag=True, show_default=True, default=False, help='Filter by patent attorneys.')
 tm_option = click.option('--tm', is_flag=True, show_default=True, default=False, help='Filter by TM attorneys.')
 num_option = click.option('-n', '--num', default=10, help='Number of places in ranking.')
@@ -36,20 +36,17 @@ def describe_attorney_filter(pat, tm):
 
 @cli.command()
 @dates_option
-@markdown_option
+@json_option
 @pat_option
 @tm_option 
-def regos(dates, markdown, pat, tm):
+def regos(dates, json, pat, tm):
     """Show new attorney registrations."""
     dates = sorted(dates)
-    output = tt.compare_data(dates, pat, tm, mode='registrations', markdown=markdown)
+    output = tt.compare_data(dates, pat, tm, mode='registrations', json=json)
     click.echo(f"Congratulations to the new {describe_attorney_filter(pat, tm)} attorneys registered between {dates[0]} and {dates[1]}:")
     # TODO Refactor to avoid multiple return types from compare_registrations
-    if markdown:
-       click.echo(output)
-    else:
-        for attorney in output:
-            click.echo(attorney)
+    
+    click.echo(output)
     
 @cli.command()
 @dates_option
@@ -74,19 +71,15 @@ def lapses(dates, pat, tm):
 @cli.command()
 @date_option
 @num_option
-@markdown_option
+@json_option
 @pat_option
 @tm_option 
-def names(date, num, markdown, pat, tm):
+def names(date, num, json, pat, tm):
     """Rank the longest names on the register."""
-    output = tt.rank_data(date, num, pat, tm,  mode='names', markdown=markdown)
+    output = tt.rank_data(date, num, pat, tm,  mode='names', json=json)
     click.echo(f"The top {num} names by length as of {date} are:")
     # TODO Refactor to avoid multiple return types from rank_names
-    if markdown:
-       click.echo(output)
-    else:
-        for attorney in output:
-            click.echo(attorney)
+    click.echo(output)
 
 @cli.command()
 @click.option('-n', '--num', default=tt.count_dates(), help='number of recent scraped dates to print')

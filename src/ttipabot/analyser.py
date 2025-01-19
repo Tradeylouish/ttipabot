@@ -28,7 +28,7 @@ def rank_data(csv: Path, num: int, pat: bool, tm: bool, mode: str = 'names', raw
         return name_rank_df(df, num)[['Name', 'Length']]
     elif mode == 'firms':
         return firm_rank_df(df, num, raw)[['Firm', 'Attorneys']]
-    raise ValueError("Invalid comparison mode.")
+    raise ValueError("Invalid ranking mode.")
 
 def csv_to_df(csvPath: Path) -> pd.DataFrame:
     """Converts a csv to a dataframe"""
