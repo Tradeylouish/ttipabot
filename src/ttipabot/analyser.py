@@ -100,42 +100,46 @@ def filter_attorneys(df: pd.DataFrame, pat: bool, tm: bool) -> pd.DataFrame:
 def consolidate_firms(df: pd.DataFrame) -> pd.DataFrame:
     """Apply consolidation rules to account for variation in firm spelling"""
     
-    #TODO Acronym detection algorithm?
+    # Uppercase everything as initial consolidation
+    df['Firm'] = df['Firm'].str.upper()
+    
     # Manual consolidation dictionary
-    di = {' and ':' & ', 
-          'Intellectual Property Office of NZ' : 'IPONZ',
-          'Intellectual Property Office of New Zealand' : 'IPONZ',
-          'GRIFFITH HACK' : 'Griffith Hack',
-          'WRAYS' : 'Wrays',
-          'WALLINGTON-DUMMER' : 'Wallington-Dummer',
-          'ORIGIN' : 'Origin',
-          'Origin IP' : 'Origin',
-          'MADDERNS' : 'Madderns'
+    di = {' AND ':' & ', 
+          'GRIFFTH' : 'GRIFFITH',
+          'INTELLECTUAL PROPERTY OFFICE OF NZ' : 'IPONZ',
+          'INTELLECTUAL PROPERTY OFFICE OF NEW ZEALAND' : 'IPONZ',
+          'ORIGIN IP' : 'ORIGIN',
+          'IP SOLVED ANZ' : 'IP SOLVED (ANZ)',
+          'PATENTS ATTORNEYS' : 'PATENT ATTORNEYS',
+          'FPA PATENTS' : 'FPA PATENT ATTORNEYS',
+          'DAVIES COLLISION' : 'DAVIES COLLISON'
           }
+    
+    # Firm specific consolidations
+    firms = ['SPRUSON & FERGUSON', 
+             'GRIFFITH HACK',
+             'DAVIES COLLISON CAVE',
+             'WRAYS',
+             'PHILLIPS ORMONDE FITZPATRICK',
+             'PIZZEYS'
+    ]
+    
+    for firm in firms:
+        df.loc[df['Firm'].str.contains(firm), 'Firm'] = firm
 
     for old, new in di.items():
         df['Firm'] = df['Firm'].str.replace(old, new)
 
     #TODO Improve the suffix elimination to better account for variations
-    for suffix in [' Limited', ' Ltd', ' LIMITED', ' LTD', ' Pty', ' Pte', ' PTY',
-                   ' Patent & Trade Mark Attorneys', 
-                   ' Patent & Trade Marks Attorneys',
-                   ' Patent & Trade marks attorneys',
-                   ' Patent & Trademark Attorneys',
-                   ' Patent & Trademark Attorney',
+    for suffix in [' LIMITED', ' LTD', ' LTD.', 
+                   ' PTE', ' PTY', ' PTY.',
+                   ' PATENT & TRADE MARK ATTORNEYS', 
+                   ' PATENT & TRADE MARKS ATTORNEYS',
+                   ' PATENT & TRADEMARK ATTORNEYS',
+                   ' PATENT & TRADEMARK ATTORNEY',
                    ','
                    ]:
         df['Firm'] = df['Firm'].str.removesuffix(suffix)
-        #df['Firm'] = df['Firm'].str.removesuffix(suffix.upper())
-
-    # Reformat firms listed in all uppercase
-    mask = df['Firm'].str.isupper() & df['Firm'].str.contains(' ')
-    df.loc[mask, 'Firm'] = df['Firm'].str.title()
-    for partial_acronym in ['DLA ', 'HWL ', ' IP']:
-        df['Firm'] = df['Firm'].str.replace(partial_acronym.title(), partial_acronym)
-
-    # Label blank entry as no firm
-    df['Firm'] = df['Firm'].replace(r'^\s*$', '<No firm>', regex=True)
 
     return df
 
@@ -143,10 +147,10 @@ def firm_rank_df(df: pd.DataFrame, num: int) -> pd.DataFrame:
     """Make a dataframe of <num> rows representing firms ranked by attorney count"""
 
     df = consolidate_firms(df)
-    
     firm_df = df['Firm'].value_counts().to_frame()
+    # Remove blank firm from ranking
     firm_df.reset_index(inplace=True)
-    firm_df.index += 1
+    firm_df = firm_df[firm_df['Firm'] != ""]
     firm_df = firm_df.rename(columns={'count': 'Attorneys'})
 
     return firm_df.head(num)
